@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>BioSynth.Tests</RootNamespace>
+    <!-- Désactiver le démarrage d'application WPF dans les tests -->
+    <StartupObject/>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Référence au projet principal -->
+    <ProjectReference Include="..\BioSynth\BioSynth.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- xUnit -->
+    <PackageReference Include="xunit"                         Version="2.9.2"/>
+    <PackageReference Include="xunit.runner.visualstudio"     Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk"        Version="17.11.1"/>
+    <!-- Assertions lisibles -->
+    <PackageReference Include="FluentAssertions"              Version="6.12.1"/>
+    <!-- Mocks -->
+    <PackageReference Include="Moq"                           Version="4.20.72"/>
+  </ItemGroup>
+
+</Project>
