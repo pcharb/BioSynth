@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>BioSynth</AssemblyName>
+    <RootNamespace>BioSynth</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="EEGReceiver_Example.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- HelixToolkit : rendu 3D WPF avancé. Exécute 'dotnet restore' après ajout. -->
+    <PackageReference Include="HelixToolkit.Wpf" Version="2.25.0" />
+  </ItemGroup>
+
+  <!-- Assets cerveau 3D -->
+  <ItemGroup>
+    <Content Include="Assets\brain.obj"     CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\brain.mtl"     CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\brain_tex.jpg" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
