@@ -1,0 +1,6 @@
+newmtl BRAIN_TEXTURE_blinn2
+Ka 0.800 0.600 0.620
+Kd 0.800 0.600 0.620
+Ks 0.200 0.150 0.160
+Ns 25.0
+map_Kd brain_tex.jpg
