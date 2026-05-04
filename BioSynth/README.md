@@ -176,7 +176,3 @@ BioSynth/
 - Le rendu graphique est piloté par un **DispatcherTimer à 30 fps** (Polyline WPF natif)
 - Les samples EEG sont générés à la fréquence exacte configurée via `Stopwatch` pour éviter la dérive temporelle
 - Format binaire : **little-endian** (standard Intel/x86)
-
----
-
-*Généré par EEG Simulator — usage à des fins de test et développement uniquement.*
