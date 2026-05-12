@@ -4,8 +4,6 @@ Simulateur multimodal de signaux neurophysiologiques pour le développement de p
 
 Développer un pipeline de neurorétroaction suppose un accès à des données EEG, oculaires et faciales synchronisées. En pratique, ça signifie des approbations éthiques, du matériel coûteux et des participants difficiles à recruter. BioSynth court-circuite cette dépendance en générant les trois modalités en temps réel, en les synchronisant via LSL, et en exposant une interface d'entrée pour y substituer un modèle d'IA externe.
 
-Développé dans le cadre d'un projet doctoral en Informatique Cognitive — **UQAM, Laboratoire Renaud**.
-
 ---
 
 ## Table des matières
