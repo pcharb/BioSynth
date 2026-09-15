@@ -1,0 +1,42 @@
+# ═══════════════════════════════════════════════════════
+#  BioSynth — .gitignore racine (couvre tout le dépôt,
+#  y compris BioSynth.Tests/ ; BioSynth/.gitignore reste
+#  valable pour son sous-dossier)
+# ═══════════════════════════════════════════════════════
+
+# ── Build .NET (tous les projets) ────────────────────────
+**/bin/
+**/obj/
+TestResults/
+.vs/
+*.user
+*.suo
+
+# ── Archives ─────────────────────────────────────────────
+*.zip
+*.7z
+*.rar
+*.tar
+*.tar.gz
+*.tgz
+
+# ── LaTeX (sources et fichiers auxiliaires) ──────────────
+*.tex
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+*.out
+*.nav
+*.snm
+
+# ── Données d'enregistrement (voir BioSynth/.gitignore) ──
+*.vhdr
+*.vmrk
+*.dat
+*.xlsx

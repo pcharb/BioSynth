@@ -24,6 +24,10 @@ namespace BioSynth
         public bool SimulateBlinks { get; set; } = true;
         public bool SimulatePupilDilation { get; set; } = true;
         public double NoiseLevel { get; set; } = 0.3;
+        /// <summary>Replay : inclure les colonnes brutes du fichier dans les sorties.
+        /// UDP/TCP passent alors en JSON (une ligne par échantillon) au lieu du binaire 46 octets ;
+        /// le CSV ajoute les colonnes brutes après les colonnes standards.</summary>
+        public bool IncludeRawColumns { get; set; } = false;
     }
 
     // ─── Sample Eye Tracking ──────────────────────────────────────────────────
@@ -42,6 +46,9 @@ namespace BioSynth
         public bool   IsBlinking       { get; set; }
         public string EventType        { get; set; } = "fixation";
         public double VelocityDeg      { get; set; }
+        /// <summary>Replay : toutes les colonnes numériques du fichier, dans l'ordre de RawNames (null en génération).</summary>
+        public double[]? Raw           { get; set; }
+        public string[]? RawNames      { get; set; }
     }
 
     public enum EyeEventType { Fixation, Saccade, Blink, MicroSaccade }
@@ -74,6 +81,48 @@ namespace BioSynth
         }
     }
 
+    /// <summary>Sérialisation JSON d'un EyeSample avec ses colonnes brutes (option IncludeRawColumns).</summary>
+    internal static class EyeJsonHelper
+    {
+        internal static string Serialize(EyeSample s)
+        {
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            var sb = new StringBuilder(256);
+            sb.Append("{\"type\":\"et\",\"t_us\":").Append(s.Timestamp);
+            sb.Append(",\"gx\":").Append(s.GazeX.ToString("R", ci));
+            sb.Append(",\"gy\":").Append(s.GazeY.ToString("R", ci));
+            sb.Append(",\"pl\":").Append(s.PupilLeft.ToString("R", ci));
+            sb.Append(",\"pr\":").Append(s.PupilRight.ToString("R", ci));
+            sb.Append(",\"blink\":").Append(s.IsBlinking ? "true" : "false");
+            sb.Append(",\"event\":\"").Append(s.EventType).Append('"');
+            if (s.Raw != null && s.RawNames != null)
+            {
+                sb.Append(",\"raw\":{");
+                for (int i = 0; i < s.Raw.Length && i < s.RawNames.Length; i++)
+                {
+                    if (i > 0) sb.Append(',');
+                    sb.Append('"').Append(s.RawNames[i].Replace("\\", "\\\\").Replace("\"", "\\\"")).Append("\":");
+                    sb.Append(double.IsNaN(s.Raw[i]) ? "null" : s.Raw[i].ToString("R", ci));
+                }
+                sb.Append('}');
+            }
+            sb.Append('}');
+            return sb.ToString();
+        }
+    }
+
+    /// <summary>Fabrique de sortie partagée par le générateur et le replay.</summary>
+    public static class EyeOutputFactory
+    {
+        public static IEyeOutput Create(EyeTrackingConfig cfg) => cfg.OutputMode switch
+        {
+            OutputMode.File      => new EyeFileOutput(cfg),
+            OutputMode.TcpStream => new EyeTcpOutput(cfg),
+            OutputMode.UdpStream => new EyeUdpOutput(cfg),
+            _                    => new EyeFileOutput(cfg)
+        };
+    }
+
     // ─── Interface de sortie ──────────────────────────────────────────────────
 
     public interface IEyeOutput : IDisposable
@@ -99,21 +148,38 @@ namespace BioSynth
                 _bin = new BinaryWriter(File.Open(cfg.FilePath, FileMode.Create));
         }
 
+        private bool _headerWritten = false;
+
         public void WriteHeader()
         {
+            // En mode colonnes brutes, l'en-tête est complété au premier échantillon (noms connus alors).
+            if (_cfg.IncludeRawColumns) return;
             _csv?.WriteLine(
                 "Timestamp_us,GazeX,GazeY,GazeXnorm,GazeYnorm," +
                 "PupilL_mm,PupilR_mm,ConfL,ConfR,Blink,EventType,Velocity_dps");
+            _headerWritten = true;
         }
 
         public void WriteSample(EyeSample s)
         {
             if (_cfg.DataFormat == DataFormat.CSV && _csv != null)
             {
-                _csv.WriteLine(
+                var ci = System.Globalization.CultureInfo.InvariantCulture;
+                if (!_headerWritten)
+                {
+                    string extra = s.RawNames != null ? "," + string.Join(",", s.RawNames) : "";
+                    _csv.WriteLine(
+                        "Timestamp_us,GazeX,GazeY,GazeXnorm,GazeYnorm," +
+                        "PupilL_mm,PupilR_mm,ConfL,ConfR,Blink,EventType,Velocity_dps" + extra);
+                    _headerWritten = true;
+                }
+                _csv.Write(
                     $"{s.Timestamp},{s.GazeX},{s.GazeY},{s.GazeXNorm},{s.GazeYNorm}," +
                     $"{s.PupilLeft},{s.PupilRight},{s.ConfidenceLeft},{s.ConfidenceRight}," +
                     $"{(s.IsBlinking ? 1 : 0)},{s.EventType},{s.VelocityDeg}");
+                if (_cfg.IncludeRawColumns && s.Raw != null)
+                    foreach (var v in s.Raw) _csv.Write("," + (double.IsNaN(v) ? "" : v.ToString("R", ci)));
+                _csv.WriteLine();
             }
             else if (_bin != null)
             {
@@ -163,6 +229,12 @@ namespace BioSynth
             if (_stream == null) return;
             try
             {
+                if (_cfg.IncludeRawColumns && s.Raw != null)
+                {
+                    var j = Encoding.UTF8.GetBytes(EyeJsonHelper.Serialize(s) + "\n");
+                    _stream.Write(j, 0, j.Length);
+                    return;
+                }
                 using var ms = new MemoryStream();
                 using var bw = new BinaryWriter(ms, Encoding.UTF8, true);
                 EyeBinaryHelper.Write(bw, s);
@@ -187,9 +259,11 @@ namespace BioSynth
     {
         private readonly UdpClient  _udp;
         private readonly IPEndPoint _ep;
+        private readonly EyeTrackingConfig _cfg;
 
         public EyeUdpOutput(EyeTrackingConfig cfg)
         {
+            _cfg = cfg;
             _udp = new UdpClient();
             _ep  = new IPEndPoint(IPAddress.Parse(cfg.StreamHost), cfg.StreamPort);
         }
@@ -200,6 +274,12 @@ namespace BioSynth
         {
             try
             {
+                if (_cfg.IncludeRawColumns && s.Raw != null)
+                {
+                    var j = Encoding.UTF8.GetBytes(EyeJsonHelper.Serialize(s));
+                    _udp.Send(j, j.Length, _ep);
+                    return;
+                }
                 using var ms = new MemoryStream();
                 using var bw = new BinaryWriter(ms, Encoding.UTF8, true);
                 EyeBinaryHelper.Write(bw, s);
@@ -447,13 +527,7 @@ namespace BioSynth
             return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
         }
 
-        private IEyeOutput CreateOutput() => _cfg.OutputMode switch
-        {
-            OutputMode.File      => new EyeFileOutput(_cfg),
-            OutputMode.TcpStream => new EyeTcpOutput(_cfg),
-            OutputMode.UdpStream => new EyeUdpOutput(_cfg),
-            _                    => new EyeFileOutput(_cfg)
-        };
+        private IEyeOutput CreateOutput() => EyeOutputFactory.Create(_cfg);
 
         public void Dispose() { Stop(); _cts?.Dispose(); }
     }

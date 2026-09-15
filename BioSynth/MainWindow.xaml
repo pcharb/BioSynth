@@ -329,7 +329,7 @@
 
                     <!-- Panel Replay (visible si RbReplay sélectionné) -->
                     <StackPanel x:Name="PanelReplay" Visibility="Collapsed">
-                        <TextBlock Text="FICHIER EEG (.csv ou .bin)" Foreground="#64748B"
+                        <TextBlock Text="FICHIER(S) (.csv, .xlsx, .vhdr, .bin)" Foreground="#64748B"
                                    FontFamily="Consolas" FontSize="9" FontWeight="Bold" Margin="0,0,0,3"/>
                         <Grid Margin="0,0,0,4">
                             <Grid.ColumnDefinitions>
@@ -344,7 +344,7 @@
                                     Background="#1E3A5F" Foreground="#E2E8F0"
                                     BorderThickness="0" Margin="3,0,0,0" Height="28"/>
                         </Grid>
-                        <TextBlock x:Name="TxtReplayInfo" Text="Sélectionner un fichier..."
+                        <TextBlock x:Name="TxtReplayInfo" Text="Sélectionner un ou plusieurs fichiers (Ctrl-clic)..."
                                    Foreground="#475569" FontFamily="Consolas" FontSize="8"
                                    TextWrapping="Wrap" Margin="0,0,0,4"/>
                         <Grid Margin="0,0,0,4">
@@ -521,6 +521,89 @@
                                    FontFamily="Consolas" FontSize="11" FontWeight="Bold"/>
                     </Border>
 
+                    <!-- Mode source ET : Génération ou Replay -->
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <RadioButton x:Name="RbEtGenerate" Grid.Column="0"
+                                     Content="Générer" IsChecked="True" GroupName="EtSource"
+                                     Foreground="#E2E8F0" FontFamily="Consolas" FontSize="10"
+                                     Checked="RbEtSource_Changed"/>
+                        <RadioButton x:Name="RbEtReplay" Grid.Column="1"
+                                     Content="Replay" GroupName="EtSource"
+                                     Foreground="#E2E8F0" FontFamily="Consolas" FontSize="10"
+                                     Checked="RbEtSource_Changed"/>
+                    </Grid>
+
+                    <!-- Panel Replay ET (visible si RbEtReplay sélectionné) -->
+                    <StackPanel x:Name="PanelEtReplay" Visibility="Collapsed">
+                        <TextBlock Text="FICHIER(S) OCULOMÉTRIE (.csv, .xlsx)" Foreground="#64748B"
+                                   FontFamily="Consolas" FontSize="9" FontWeight="Bold" Margin="0,0,0,3"/>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="32"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="TxtEtReplayPath" Grid.Column="0"
+                                     Background="#0F172A" Foreground="#E2E8F0"
+                                     BorderBrush="#1E3A5F" FontFamily="Consolas"
+                                     Height="28" Padding="6,4" Text=""/>
+                            <Button Grid.Column="1" Content="…" Click="BtnBrowseEtReplay_Click"
+                                    Background="#1E3A5F" Foreground="#E2E8F0"
+                                    BorderThickness="0" Margin="3,0,0,0" Height="28"/>
+                        </Grid>
+                        <TextBlock x:Name="TxtEtReplayInfo" Text="Sélectionner un ou plusieurs fichiers (Ctrl-clic)..."
+                                   Foreground="#475569" FontFamily="Consolas" FontSize="8"
+                                   TextWrapping="Wrap" Margin="0,0,0,4"/>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="60"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="VITESSE" Foreground="#64748B"
+                                       FontFamily="Consolas" FontSize="9" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="CbEtReplaySpeed" Grid.Column="1"
+                                      Background="White" Foreground="Black"
+                                      FontFamily="Consolas" Height="26"
+                                      SelectionChanged="CbEtReplaySpeed_Changed">
+                                <ComboBoxItem Content="0.25×" Tag="0.25"/>
+                                <ComboBoxItem Content="0.5×"  Tag="0.5"/>
+                                <ComboBoxItem Content="1×"    Tag="1.0" IsSelected="True"/>
+                                <ComboBoxItem Content="2×"    Tag="2.0"/>
+                                <ComboBoxItem Content="4×"    Tag="4.0"/>
+                            </ComboBox>
+                        </Grid>
+                        <CheckBox x:Name="ChkEtReplayLoop" Content="Boucler"
+                                  Foreground="#E2E8F0" FontFamily="Consolas" FontSize="10"
+                                  IsChecked="False" Margin="0,0,0,4"/>
+                        <CheckBox x:Name="ChkEtReplayRaw" Content="Colonnes brutes en sortie (JSON UDP/TCP, CSV)"
+                                  Foreground="#E2E8F0" FontFamily="Consolas" FontSize="10"
+                                  IsChecked="False" Margin="0,0,0,4"
+                                  ToolTip="Remplace le binaire 46 octets par une ligne JSON par échantillon incluant toutes les colonnes du fichier"/>
+                        <Grid Margin="0,0,0,2">
+                            <ProgressBar x:Name="PbEtReplayProgress" Height="8"
+                                         Background="#1A2235" Foreground="#00D4FF"
+                                         BorderThickness="0" Maximum="100" Value="0"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="TxtEtReplayProgress" Text="0%"
+                                       Foreground="#64748B" FontFamily="Consolas" FontSize="8"/>
+                            <Button x:Name="BtnEtReplayPause" Grid.Column="1"
+                                    Content="⏸" Click="BtnEtReplayPause_Click"
+                                    Background="Transparent" Foreground="#00D4FF"
+                                    BorderThickness="0" FontSize="14"
+                                    Visibility="Collapsed" Cursor="Hand"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Panel Génération ET (masqué en replay) -->
+                    <StackPanel x:Name="PanelEtGenerate">
                     <TextBlock Text="TAUX D'ÉCHANTILLONNAGE ET (Hz)" Foreground="#64748B"
                                FontFamily="Consolas" FontSize="9" FontWeight="Bold" Margin="0,0,0,3"/>
                     <ComboBox x:Name="CbEtSampleRate" Margin="0,0,0,8"
@@ -556,6 +639,8 @@
                                  Height="28" Padding="6,4" Text="1080"
                                  PreviewTextInput="TxtSampleRate_PreviewTextInput"/>
                     </Grid>
+
+                    </StackPanel>
 
                     <TextBlock Text="MODE DE SORTIE ET" Foreground="#64748B"
                                FontFamily="Consolas" FontSize="9" FontWeight="Bold" Margin="0,0,0,3"/>
@@ -599,7 +684,8 @@
                                  Height="28" Padding="6,4" Text="9998" Margin="0,0,0,6"/>
                     </StackPanel>
 
-                    <!-- Options Eye Tracking -->
+                    <!-- Options Eye Tracking (génération seulement) -->
+                    <StackPanel x:Name="PanelEtGenerateOptions">
                     <TextBlock Text="COMPORTEMENTS SIMULÉS" Foreground="#64748B"
                                FontFamily="Consolas" FontSize="9" FontWeight="Bold" Margin="0,4,0,4"/>
                     <CheckBox x:Name="ChkEtSaccades" Foreground="#E2E8F0" FontFamily="Consolas"
@@ -624,6 +710,7 @@
                                    FontFamily="Consolas" FontSize="11"
                                    VerticalAlignment="Center" TextAlignment="Right"/>
                     </Grid>
+                    </StackPanel>
 
                     <!-- LSL Eye Tracking -->
                     <Separator Background="#1E3A60" Margin="0,6,0,6"/>
@@ -962,12 +1049,12 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="GAZE X" Foreground="#64748B" FontFamily="Consolas"
+                                    <TextBlock x:Name="LblGazeX" Text="GAZE X" Foreground="#64748B" FontFamily="Consolas"
                                                FontSize="9" Margin="0,0,0,2"/>
                                     <TextBlock x:Name="TxtGazeX" Text="—"
                                                Foreground="#00D4FF" FontFamily="Consolas"
                                                FontSize="13" FontWeight="Bold"/>
-                                    <TextBlock Text="GAZE Y" Foreground="#64748B" FontFamily="Consolas"
+                                    <TextBlock x:Name="LblGazeY" Text="GAZE Y" Foreground="#64748B" FontFamily="Consolas"
                                                FontSize="9" Margin="0,6,0,2"/>
                                     <TextBlock x:Name="TxtGazeY" Text="—"
                                                Foreground="#00D4FF" FontFamily="Consolas"
@@ -979,12 +1066,12 @@
                                                FontSize="12" FontWeight="Bold"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="PUPILLE G (mm)" Foreground="#64748B"
+                                    <TextBlock x:Name="LblPupilL" Text="PUPILLE G (mm)" Foreground="#64748B"
                                                FontFamily="Consolas" FontSize="9" Margin="0,0,0,2"/>
                                     <TextBlock x:Name="TxtPupilL" Text="—"
                                                Foreground="#8B5CF6" FontFamily="Consolas"
                                                FontSize="13" FontWeight="Bold"/>
-                                    <TextBlock Text="PUPILLE D (mm)" Foreground="#64748B"
+                                    <TextBlock x:Name="LblPupilR" Text="PUPILLE D (mm)" Foreground="#64748B"
                                                FontFamily="Consolas" FontSize="9" Margin="0,6,0,2"/>
                                     <TextBlock x:Name="TxtPupilR" Text="—"
                                                Foreground="#8B5CF6" FontFamily="Consolas"
@@ -1001,7 +1088,7 @@
                         <!-- Graphiques pupille -->
                         <Border Padding="8,0,8,0">
                             <StackPanel>
-                                <TextBlock Text="DIAMÈTRE PUPILLAIRE" Foreground="#64748B"
+                                <TextBlock x:Name="TxtPupilTitle" Text="DIAMÈTRE PUPILLAIRE" Foreground="#64748B"
                                            FontFamily="Consolas" FontSize="9" Margin="0,0,0,4"/>
                                 <Border BorderBrush="#1E3A5F" BorderThickness="1"
                                         Background="#060D18" Height="80">
@@ -1015,7 +1102,7 @@
                                     </Canvas>
                                 </Border>
                                 <!-- Légende -->
-                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                <StackPanel x:Name="PupilLegend" Orientation="Horizontal" Margin="0,3,0,0">
                                     <Ellipse Width="8" Height="8" Fill="#8B5CF6" Margin="0,0,4,0"/>
                                     <TextBlock Text="Gauche" Foreground="#64748B"
                                                FontFamily="Consolas" FontSize="9" Margin="0,0,12,0"/>

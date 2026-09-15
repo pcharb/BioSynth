@@ -38,11 +38,29 @@ namespace BioSynth
 
         // ── Eye Tracking ──────────────────────────────────────────────────────
         private EyeTrackingGenerator? _etGenerator;
+        private EyeTrackingReplay?    _etReplay;      // source Replay (fichiers réels)
         private bool                  _etRunning   = false;
 
         private readonly ConcurrentQueue<EyeSample> _etQueue = new();
         private const int ET_BUFFER = 256;
 
+        // Replay brut (fichier sans GazeX/GazeY) : traces des colonnes du fichier
+        private const int ET_RAW_MAX = 8;
+        private bool      _etRawMode = false;
+        private string[]  _etRawNames = Array.Empty<string>();
+        private double[][] _etRawBuf  = Array.Empty<double[]>();
+        private int       _etRawHead  = 0;
+        private readonly List<Polyline> _etRawLines = new();
+        // Estimation d'un point de regard à partir des colonnes brutes (voir EstimateGazeFromRaw)
+        private (double x, double y)[]? _etRawAnchors;   // ancrages par colonne (mode angles vers zones d'intérêt)
+        private bool _etRawAxisMode = false;              // 2 colonnes = X et Y directs
+        private double _etRawMinX = double.MaxValue, _etRawMaxX = double.MinValue,
+                       _etRawMinY = double.MaxValue, _etRawMaxY = double.MinValue;
+        private static readonly Color[] EtRawColors =
+        {
+            Color.FromRgb(0, 212, 255), Color.FromRgb(251, 191, 36), Color.FromRgb(0, 255, 136), Color.FromRgb(236, 72, 153),
+            Color.FromRgb(139, 92, 246), Color.FromRgb(255, 165, 0), Color.FromRgb(148, 163, 184), Color.FromRgb(255, 68, 68),
+        };
         private readonly double[] _pupilBufL = new double[ET_BUFFER];
         private readonly double[] _pupilBufR = new double[ET_BUFFER];
         private int                _pupilHead = 0;
@@ -101,6 +119,7 @@ namespace BioSynth
 
         // ── Streams LSL ───────────────────────────────────────────────────────
         private EEGLslStream?          _eegLsl;
+        private MarkerLslStream?       _markerLsl;   // marqueurs du replay (vmrk, colonne Marker)
         private EyeTrackingLslStream?  _etLsl;
         private FaceTrackingLslStream? _ftLsl;
         private bool                   _lslAvailable = false;
@@ -290,6 +309,30 @@ namespace BioSynth
         {
             while (_etQueue.TryDequeue(out var s))
             {
+                if (_etRawMode && s.Raw != null)
+                {
+                    int n = Math.Min(s.Raw.Length, _etRawBuf.Length);
+                    for (int c = 0; c < n; c++) _etRawBuf[c][_etRawHead] = double.IsNaN(s.Raw[c]) ? 0 : s.Raw[c];
+                    _etRawHead = (_etRawHead + 1) % ET_BUFFER;
+                    TxtGazeX.Text      = n > 0 ? $"{s.Raw[0]:F2}" : "—";
+                    TxtGazeY.Text      = n > 1 ? $"{s.Raw[1]:F2}" : "—";
+                    TxtPupilL.Text     = n > 2 ? $"{s.Raw[2]:F2}" : "—";
+                    TxtPupilR.Text     = n > 3 ? $"{s.Raw[3]:F2}" : "—";
+                    TxtEtVelocity.Text = "—";
+                    TxtEtEvent.Text    = "RAW";
+
+                    // Point de regard estimé dans le petit carré, comme en simulation
+                    var est = EstimateGazeFromRaw(s.Raw, out string nearest);
+                    if (est.HasValue)
+                    {
+                        _trailX3 = _trailX2; _trailY3 = _trailY2;
+                        _trailX2 = _trailX1; _trailY2 = _trailY1;
+                        _trailX1 = est.Value.x; _trailY1 = est.Value.y;
+                    }
+                    TxtEtEventDetail.Text = nearest.Length > 0 ? nearest.ToUpperInvariant() : "BRUT";
+                    _lastEvt = "fixation";
+                    continue;
+                }
                 _trailX3 = _trailX2; _trailY3 = _trailY2;
                 _trailX2 = _trailX1; _trailY2 = _trailY1;
                 _trailX1 = s.GazeXNorm; _trailY1 = s.GazeYNorm;
@@ -349,6 +392,153 @@ namespace BioSynth
             }
         }
 
+        /// <summary>Bascule l'affichage ET entre le mode standard (regard + pupille) et le mode brut
+        /// (traces autoscalées des colonnes du fichier), utilisé quand le replay n'a pas de GazeX/GazeY.</summary>
+        private void SetEtRawMode(string[]? names)
+        {
+            _etRawMode = names != null && names.Length > 0;
+            foreach (var pl in _etRawLines) PupilCanvas.Children.Remove(pl);
+            _etRawLines.Clear();
+            PupilLegend.Children.Clear();
+
+            if (!_etRawMode)
+            {
+                _etRawNames = Array.Empty<string>(); _etRawBuf = Array.Empty<double[]>();
+                PupilLineL.Visibility = PupilLineR.Visibility = Visibility.Visible;
+                GazeDot.Visibility = GazeTrail1.Visibility = GazeTrail2.Visibility = GazeTrail3.Visibility = Visibility.Visible;
+                TxtPupilTitle.Text = "DIAMÈTRE PUPILLAIRE";
+                LblGazeX.Text = "GAZE X"; LblGazeY.Text = "GAZE Y";
+                LblPupilL.Text = "PUPILLE G (mm)"; LblPupilR.Text = "PUPILLE D (mm)";
+                AddLegend("Gauche", Color.FromRgb(139, 92, 246));
+                AddLegend("Droite", Color.FromRgb(236, 72, 153));
+                return;
+            }
+
+            int n = Math.Min(names!.Length, ET_RAW_MAX);
+            _etRawNames = names.Take(n).ToArray();
+            _etRawBuf   = Enumerable.Range(0, n).Select(_ => new double[ET_BUFFER]).ToArray();
+            _etRawHead  = 0;
+            PupilLineL.Visibility = PupilLineR.Visibility = Visibility.Collapsed;
+            GazeDot.Visibility = GazeTrail1.Visibility = GazeTrail2.Visibility = GazeTrail3.Visibility = Visibility.Visible;
+            _trailX1 = _trailX2 = _trailX3 = 0.5; _trailY1 = _trailY2 = _trailY3 = 0.5;
+            BuildRawGazeModel(names);
+            TxtPupilTitle.Text = $"COLONNES DU FICHIER ({names.Length})";
+            LblGazeX.Text  = n > 0 ? _etRawNames[0].ToUpperInvariant() : "—";
+            LblGazeY.Text  = n > 1 ? _etRawNames[1].ToUpperInvariant() : "—";
+            LblPupilL.Text = n > 2 ? _etRawNames[2].ToUpperInvariant() : "—";
+            LblPupilR.Text = n > 3 ? _etRawNames[3].ToUpperInvariant() : "—";
+            for (int c = 0; c < n; c++)
+            {
+                var pl = new Polyline { Stroke = new SolidColorBrush(EtRawColors[c % EtRawColors.Length]),
+                                        StrokeThickness = 1.2, StrokeLineJoin = PenLineJoin.Round };
+                PupilCanvas.Children.Add(pl);
+                _etRawLines.Add(pl);
+                AddLegend(_etRawNames[c], EtRawColors[c % EtRawColors.Length]);
+            }
+
+            void AddLegend(string text, Color color)
+            {
+                PupilLegend.Children.Add(new Ellipse { Width = 8, Height = 8, Fill = new SolidColorBrush(color), Margin = new Thickness(0, 0, 4, 0) });
+                PupilLegend.Children.Add(new TextBlock { Text = text, Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
+                                                         FontFamily = new FontFamily("Consolas"), FontSize = 9, Margin = new Thickness(0, 0, 10, 0) });
+            }
+        }
+
+        /// <summary>
+        /// Prépare l'estimation d'un point de regard normalisé à partir des colonnes brutes.
+        ///   - 2 colonnes numériques : elles sont prises comme X et Y, normalisées sur leur plage observée.
+        ///   - Sinon (typiquement des angles entre le regard et des zones d'intérêt) : chaque colonne reçoit
+        ///     un ancrage dans le carré, choisi d'après son nom quand il est reconnu (visage en haut,
+        ///     poitrine au milieu, bassin en bas, « devant » au centre), sinon réparti sur un cercle.
+        ///     Le point est la moyenne des ancrages pondérée par 1/angle² : il glisse vers la zone
+        ///     dont l'angle est le plus petit.
+        /// </summary>
+        private void BuildRawGazeModel(string[] names)
+        {
+            _etRawMinX = _etRawMinY = double.MaxValue; _etRawMaxX = _etRawMaxY = double.MinValue;
+            _etRawAxisMode = names.Length == 2 && !names.Any(n => n.ToLowerInvariant().Contains("angle"));
+            if (_etRawAxisMode) { _etRawAnchors = null; return; }
+
+            (double, double)? Known(string n)
+            {
+                n = n.ToLowerInvariant();
+                if (n.Contains("visage") || n.Contains("face") || n.Contains("tete") || n.Contains("tête") || n.Contains("head")) return (0.5, 0.14);
+                if (n.Contains("sein") || n.Contains("poitrine") || n.Contains("chest") || n.Contains("torse") || n.Contains("torso")) return (0.5, 0.42);
+                if (n.Contains("genital") || n.Contains("génital") || n.Contains("bassin") || n.Contains("pelvis") || n.Contains("hanche")) return (0.5, 0.72);
+                if (n.Contains("jambe") || n.Contains("leg") || n.Contains("pied") || n.Contains("feet")) return (0.5, 0.92);
+                if (n.Contains("devant") || n.Contains("front") || n.Contains("centre") || n.Contains("center") || n.Contains("ahead")) return (0.5, 0.5);
+                if (n.Contains("gauche") || n.Contains("left"))  return (0.15, 0.5);
+                if (n.Contains("droit")  || n.Contains("right")) return (0.85, 0.5);
+                return null;
+            }
+
+            _etRawAnchors = new (double, double)[names.Length];
+            var unknown = new List<int>();
+            for (int i = 0; i < names.Length; i++)
+            {
+                var k = Known(names[i]);
+                if (k.HasValue) _etRawAnchors[i] = k.Value; else unknown.Add(i);
+            }
+            // Colonnes non reconnues : réparties sur un cercle autour du centre
+            for (int j = 0; j < unknown.Count; j++)
+            {
+                double a = -Math.PI / 2 + 2 * Math.PI * j / unknown.Count;
+                _etRawAnchors[unknown[j]] = (0.5 + 0.38 * Math.Cos(a), 0.5 + 0.38 * Math.Sin(a));
+            }
+        }
+
+        private (double x, double y)? EstimateGazeFromRaw(double[] raw, out string nearest)
+        {
+            nearest = "";
+            if (_etRawAxisMode)
+            {
+                if (raw.Length < 2 || double.IsNaN(raw[0]) || double.IsNaN(raw[1])) return null;
+                _etRawMinX = Math.Min(_etRawMinX, raw[0]); _etRawMaxX = Math.Max(_etRawMaxX, raw[0]);
+                _etRawMinY = Math.Min(_etRawMinY, raw[1]); _etRawMaxY = Math.Max(_etRawMaxY, raw[1]);
+                double rx = _etRawMaxX - _etRawMinX, ry = _etRawMaxY - _etRawMinY;
+                return (rx > 1e-9 ? (raw[0] - _etRawMinX) / rx : 0.5, ry > 1e-9 ? (raw[1] - _etRawMinY) / ry : 0.5);
+            }
+            if (_etRawAnchors == null) return null;
+
+            double sx = 0, sy = 0, sw = 0, best = double.MaxValue; int bestIdx = -1;
+            int n = Math.Min(raw.Length, _etRawAnchors.Length);
+            for (int i = 0; i < n; i++)
+            {
+                double a = raw[i];
+                if (double.IsNaN(a) || a < 0) continue;           // -1 / NaN = donnée invalide
+                double w = 1.0 / Math.Max(a * a, 0.25);            // 1/angle², borné pour éviter l'infini
+                sx += w * _etRawAnchors[i].x; sy += w * _etRawAnchors[i].y; sw += w;
+                if (a < best) { best = a; bestIdx = i; }
+            }
+            if (sw <= 0) return null;
+            if (bestIdx >= 0 && bestIdx < _etRawNames.Length)
+                nearest = _etRawNames[bestIdx].Replace("AngleYeux", "").Replace("Angle", "");
+            return (Math.Clamp(sx / sw, 0, 1), Math.Clamp(sy / sw, 0, 1));
+        }
+
+        private void RedrawEtRaw()
+        {
+            double cw = PupilCanvas.ActualWidth  > 10 ? PupilCanvas.ActualWidth  : 288;
+            double ch = PupilCanvas.ActualHeight > 10 ? PupilCanvas.ActualHeight : 80;
+            double step = cw / (ET_BUFFER - 1);
+            // Autoscale global sur toutes les traces (même unité en général : degrés, pixels...)
+            double min = double.MaxValue, max = double.MinValue;
+            foreach (var buf in _etRawBuf) foreach (var v in buf) { if (v < min) min = v; if (v > max) max = v; }
+            if (max - min < 1e-9) { max = min + 1; }
+            double pad = (max - min) * 0.05; min -= pad; max += pad;
+            for (int c = 0; c < _etRawBuf.Length; c++)
+            {
+                var pts = new PointCollection(ET_BUFFER);
+                for (int j = 0; j < ET_BUFFER; j++)
+                {
+                    int idx = (_etRawHead + j) % ET_BUFFER;
+                    double ny = 1.0 - (_etRawBuf[c][idx] - min) / (max - min);
+                    pts.Add(new Point(j * step, Math.Clamp(ny * ch, 0, ch)));
+                }
+                _etRawLines[c].Points = pts;
+            }
+        }
+
         private void RedrawEt()
         {
             double mapW = GazeMapCanvas.ActualWidth  > 10 ? GazeMapCanvas.ActualWidth  : 304;
@@ -372,6 +562,8 @@ namespace BioSynth
                 "microsaccade" => new SolidColorBrush(Color.FromRgb(255, 165,   0)),
                 _              => new SolidColorBrush(Color.FromRgb(  0, 212, 255))
             };
+
+            if (_etRawMode) { RedrawEtRaw(); return; }
 
             double cw = PupilCanvas.ActualWidth  > 10 ? PupilCanvas.ActualWidth  : 288;
             double ch = PupilCanvas.ActualHeight > 10 ? PupilCanvas.ActualHeight : 80;
@@ -587,9 +779,18 @@ namespace BioSynth
             }
             if (_etGenerator != null)
                 TxtEtSampleCount.Text = _etGenerator.TotalSamplesGenerated.ToString("N0");
+            else if (_etReplay != null && _etRunning)
+                TxtEtSampleCount.Text = _etReplay.TotalSamplesGenerated.ToString("N0");
 
             if (_ftGenerator != null)
                 TxtFtSampleCount.Text = _ftGenerator.TotalSamplesGenerated.ToString("N0");
+
+            // Progression replay ET
+            if (_etReplay != null && _etRunning)
+            {
+                if (PbEtReplayProgress  != null) PbEtReplayProgress.Value = _etReplay.ProgressPct;
+                if (TxtEtReplayProgress != null) TxtEtReplayProgress.Text = $"{_etReplay.ProgressPct:F1}%";
+            }
 
             // Stats replay
             if (_replay != null && _replayRunning)
@@ -694,10 +895,14 @@ namespace BioSynth
         // REPLAY start / stop
         private void StartReplay()
         {
-            string path = TxtReplayPath?.Text?.Trim() ?? "";
-            if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path))
+            // Plusieurs fichiers séparés par ';' = liste de lecture
+            var paths = (TxtReplayPath?.Text ?? "")
+                .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+            string path = paths.FirstOrDefault() ?? "";
+            if (paths.Count == 0 || paths.Any(p => !System.IO.File.Exists(p)))
             {
-                MessageBox.Show("Sélectionner un fichier EEG valide avant de démarrer.",
+                MessageBox.Show("Sélectionner un ou plusieurs fichiers valides avant de démarrer.",
                     "Replay", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -721,6 +926,7 @@ namespace BioSynth
                 Speed    = speed,
                 Loop     = ChkReplayLoop?.IsChecked == true,
             };
+            if (paths.Count > 1) _replay.FilePaths.AddRange(paths);
 
             _replay.SampleReady += sample =>
             {
@@ -733,6 +939,17 @@ namespace BioSynth
                 TxtStatus.Text = msg;
             });
 
+            _replay.FileChanged += (idx, total, name) => Dispatcher.BeginInvoke(() =>
+            {
+                TxtRecLabel.Text = total > 1 ? $"● REPLAY {idx + 1}/{total}" : "● REPLAY";
+            });
+
+            _replay.MarkerReady += (t, label) =>
+            {
+                _markerLsl?.Push(label);
+                Dispatcher.BeginInvoke(() => TxtStatus.Text = $"Marqueur {label} à {t:F2} s");
+            };
+
             _replay.PlaybackFinished += () => Dispatcher.BeginInvoke(() =>
             {
                 if (!(_replay?.Loop == true)) StopEeg();
@@ -742,6 +959,9 @@ namespace BioSynth
             _replay.Start();
             _channelCount = _replay.ChannelCount;
             _sampleRate   = _replay.SampleRate;
+            _replayRunning = true;
+            // Rouvrir le flux LSL avec les canaux et marqueurs du fichier
+            if (_eegLsl != null) OpenEegLsl();
 
             // Re-initialiser les buffers d'affichage pour le bon nombre de canaux
             int displayCh = Math.Min(_displayChannels, _channelCount);
@@ -770,6 +990,8 @@ namespace BioSynth
             _replay?.Dispose();
             _replay        = null;
             _replayRunning = false;
+            _markerLsl?.Dispose();
+            _markerLsl     = null;
             if (BtnReplayPause != null) BtnReplayPause.Visibility = Visibility.Collapsed;
         }
 
@@ -789,19 +1011,26 @@ namespace BioSynth
             _blinkCount = 0; _velSum     = 0; _velCount = 0;
             while (_etQueue.TryDequeue(out _)) { }
 
-            var cfg = BuildEtConfig();
-            _etGenerator = new EyeTrackingGenerator(cfg);
-            _etGenerator.SampleGenerated += OnEtSample;
-            _etGenerator.StatusChanged   += msg => Dispatcher.BeginInvoke(() => TxtEtStatus.Text = msg);
-            OpenEtLsl();
-            _etRunning = true;
-            _etGenerator.Start();
+            if (RbEtReplay?.IsChecked == true)
+            {
+                if (!StartEtReplay()) return;
+            }
+            else
+            {
+                var cfg = BuildEtConfig();
+                _etGenerator = new EyeTrackingGenerator(cfg);
+                _etGenerator.SampleGenerated += OnEtSample;
+                _etGenerator.StatusChanged   += msg => Dispatcher.BeginInvoke(() => TxtEtStatus.Text = msg);
+                OpenEtLsl();
+                _etRunning = true;
+                _etGenerator.Start();
+            }
             _statsTimer.Start();
 
             BtnEtStartStop.Content    = "■  ARRÊTER ET";
             BtnEtStartStop.Background = new SolidColorBrush(Color.FromRgb(12, 74, 110));
             BtnEtStartStop.Foreground = new SolidColorBrush(Color.FromRgb(0, 212, 255));
-            TxtEtRecLabel.Text        = "● ET REC";
+            TxtEtRecLabel.Text        = _etReplay != null ? "● ET REPLAY" : "● ET REC";
             TxtEtRecLabel.Foreground  = new SolidColorBrush(Color.FromRgb(0, 212, 255));
             RecDotEt.Opacity          = 1;
             SetEtControlsEnabled(false);
@@ -812,6 +1041,11 @@ namespace BioSynth
             _etRunning = false;
             _etGenerator?.Stop();
             _etGenerator  = null;
+            _etReplay?.Stop();
+            _etReplay?.Dispose();
+            _etReplay     = null;
+            if (_etRawMode) SetEtRawMode(null);
+            if (BtnEtReplayPause != null) BtnEtReplayPause.Visibility = Visibility.Collapsed;
             _etLsl?.Dispose(); _etLsl = null;
             UpdateLslStatus();
 
@@ -971,6 +1205,11 @@ namespace BioSynth
             if (TxtEtHost     != null) TxtEtHost.IsEnabled     = e;
             if (TxtEtPort     != null) TxtEtPort.IsEnabled     = e;
             if (TxtEtFilePath != null) TxtEtFilePath.IsEnabled = e;
+            if (RbEtGenerate  != null) RbEtGenerate.IsEnabled  = e;
+            if (RbEtReplay    != null) RbEtReplay.IsEnabled    = e;
+            if (TxtEtReplayPath != null) TxtEtReplayPath.IsEnabled = e;
+            if (ChkEtReplayLoop != null) ChkEtReplayLoop.IsEnabled = e;
+            if (ChkEtReplayRaw  != null) ChkEtReplayRaw.IsEnabled  = e;
         }
 
         private void SetFtControlsEnabled(bool e)
@@ -1047,6 +1286,104 @@ namespace BioSynth
         {
             var dlg = new SaveFileDialog { Filter = "CSV (*.csv)|*.csv|Binaire (*.bin)|*.bin", FileName = "eyetracking_data.csv" };
             if (dlg.ShowDialog() == true && TxtEtFilePath != null) TxtEtFilePath.Text = dlg.FileName;
+        }
+
+        // ── Replay ET ─────────────────────────────────────────────────────────
+
+        private void RbEtSource_Changed(object sender, RoutedEventArgs e)
+        {
+            if (PanelEtReplay == null || PanelEtGenerate == null || PanelEtGenerateOptions == null) return;
+            bool replay = RbEtReplay?.IsChecked == true;
+            PanelEtReplay.Visibility          = replay ? Visibility.Visible   : Visibility.Collapsed;
+            PanelEtGenerate.Visibility        = replay ? Visibility.Collapsed : Visibility.Visible;
+            PanelEtGenerateOptions.Visibility = replay ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        private void BtnBrowseEtReplay_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title  = "Sélectionner un ou plusieurs enregistrements oculométriques",
+                Multiselect = true,
+                Filter = "Enregistrements (*.csv;*.xlsx;*.tsv;*.txt)|*.csv;*.xlsx;*.tsv;*.txt|Tous (*.*)|*.*"
+            };
+            if (dlg.ShowDialog() != true) return;
+            var files = dlg.FileNames.OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToArray();
+            TxtEtReplayPath.Text = string.Join(";", files);
+
+            using var tmp = new EyeTrackingReplay(files);
+            var (ok, info, _, _, _) = tmp.Inspect();
+            TxtEtReplayInfo.Text       = info;
+            TxtEtReplayInfo.Foreground = new SolidColorBrush(ok ? Color.FromRgb(0, 212, 255) : Color.FromRgb(239, 68, 68));
+        }
+
+        private bool StartEtReplay()
+        {
+            var paths = (TxtEtReplayPath?.Text ?? "")
+                .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+            if (paths.Count == 0 || paths.Any(p => !System.IO.File.Exists(p)))
+            {
+                MessageBox.Show("Sélectionner un ou plusieurs fichiers oculométriques valides avant de démarrer.",
+                                "Replay ET", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
+            double speed = 1.0;
+            if (CbEtReplaySpeed?.SelectedItem is ComboBoxItem spdItem)
+                double.TryParse(spdItem.Tag?.ToString(), System.Globalization.NumberStyles.Float,
+                                System.Globalization.CultureInfo.InvariantCulture, out speed);
+
+            var outCfg = BuildEtConfig();
+            outCfg.IncludeRawColumns = ChkEtReplayRaw?.IsChecked == true;
+            _etReplay = new EyeTrackingReplay(paths)
+            {
+                Speed = speed,
+                Loop  = ChkEtReplayLoop?.IsChecked == true,
+                OutputConfig = outCfg,
+            };
+            var (ok, info, _, _, _) = _etReplay.Inspect();
+            if (!ok)
+            {
+                MessageBox.Show(info, "Replay ET", MessageBoxButton.OK, MessageBoxImage.Error);
+                _etReplay.Dispose(); _etReplay = null;
+                return false;
+            }
+
+            _etReplay.SampleGenerated += OnEtSample;
+            _etReplay.StatusChanged   += msg => Dispatcher.BeginInvoke(() => TxtEtStatus.Text = msg);
+            _etReplay.FileChanged     += (idx, total, name) => Dispatcher.BeginInvoke(() =>
+                TxtEtRecLabel.Text = total > 1 ? $"● ET REPLAY {idx + 1}/{total}" : "● ET REPLAY");
+            _etReplay.PlaybackFinished += () => Dispatcher.BeginInvoke(() =>
+            {
+                TxtEtStatus.Text = "Replay ET terminé.";
+                if (_etRunning) StopEt();
+            });
+
+            _etRunning = true;
+            _etReplay.Start();          // fixe ChannelNames avant l'ouverture du flux LSL
+            OpenEtLsl();
+            if (BtnEtReplayPause != null) { BtnEtReplayPause.Visibility = Visibility.Visible; BtnEtReplayPause.Content = "⏸"; }
+            SetEtRawMode(_etReplay.HasGazeMapping ? null : _etReplay.ChannelNames);
+            TxtEtStatus.Text = _etReplay.HasGazeMapping
+                ? "Replay ET : colonnes GazeX/GazeY reconnues."
+                : "Replay ET : colonnes brutes (pas de GazeX/GazeY), traces des colonnes du fichier.";
+            return true;
+        }
+
+        private void CbEtReplaySpeed_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_etReplay != null && CbEtReplaySpeed.SelectedItem is ComboBoxItem item
+                && double.TryParse(item.Tag?.ToString(), System.Globalization.NumberStyles.Float,
+                                   System.Globalization.CultureInfo.InvariantCulture, out double spd))
+                _etReplay.Speed = spd;
+        }
+
+        private void BtnEtReplayPause_Click(object sender, RoutedEventArgs e)
+        {
+            if (_etReplay == null) return;
+            if (_etReplay.IsPaused) { _etReplay.Resume(); BtnEtReplayPause.Content = "⏸"; }
+            else                    { _etReplay.Pause();  BtnEtReplayPause.Content = "▶"; }
         }
 
         // ═════════════════════════════════════════════════════════════════════
@@ -1158,19 +1495,25 @@ namespace BioSynth
         {
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
-                Title  = "Sélectionner un fichier EEG",
-                Filter = "Fichiers EEG (*.csv;*.bin)|*.csv;*.bin|CSV (*.csv)|*.csv|Binaire (*.bin)|*.bin|Tous (*.*)|*.*"
+                Title  = "Sélectionner un ou plusieurs enregistrements (même type)",
+                Multiselect = true,
+                Filter = "Enregistrements (*.csv;*.bin;*.xlsx;*.vhdr;*.dat;*.eeg)|*.csv;*.bin;*.xlsx;*.vhdr;*.dat;*.eeg"
+                       + "|BrainVision (*.vhdr;*.dat;*.eeg)|*.vhdr;*.dat;*.eeg"
+                       + "|CSV (*.csv)|*.csv|Excel (*.xlsx)|*.xlsx|Binaire (*.bin)|*.bin|Tous (*.*)|*.*"
             };
             if (dlg.ShowDialog() == true)
             {
-                TxtReplayPath.Text = dlg.FileName;
-                InspectReplayFile(dlg.FileName);
+                // Ordre alphabétique pour une lecture prévisible (Segment1, Segment2...)
+                var files = dlg.FileNames.OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToArray();
+                TxtReplayPath.Text = string.Join(";", files);
+                InspectReplayFile(files);
             }
         }
 
-        private void InspectReplayFile(string path)
+        private void InspectReplayFile(params string[] paths)
         {
-            var tmpReplay = new EEGDataReplay { FilePath = path };
+            var tmpReplay = new EEGDataReplay { FilePath = paths[0] };
+            if (paths.Length > 1) tmpReplay.FilePaths.AddRange(paths);
             var (ok, info, ch, sr, frames) = tmpReplay.Inspect();
             TxtReplayInfo.Text = ok
                 ? $"✓ {info}"
@@ -1216,7 +1559,12 @@ namespace BioSynth
             {
                 _eegLsl?.Dispose();
                 string name = TxtLslNameEeg?.Text?.Trim() is { Length: > 0 } n ? n : "BioSynth_EEG";
-                _eegLsl = new EEGLslStream(_channelCount, _sampleRate, name);
+                // En replay, les noms de canaux et l'unité viennent du fichier
+                _eegLsl = new EEGLslStream(_channelCount, _sampleRate, name,
+                                           _replayRunning ? _replay?.ChannelNames : null);
+                _markerLsl?.Dispose(); _markerLsl = null;
+                if (_replayRunning && _replay != null && _replay.Markers.Count > 0)
+                    _markerLsl = new MarkerLslStream(name + "_Markers");
                 UpdateLslStatus();
             }
             catch (Exception ex) { TxtStatus.Text = $"LSL EEG erreur : {ex.Message}"; }
@@ -1230,7 +1578,9 @@ namespace BioSynth
             {
                 _etLsl?.Dispose();
                 string name = TxtLslNameEt?.Text?.Trim() is { Length: > 0 } n ? n : "BioSynth_EyeTracking";
-                _etLsl = new EyeTrackingLslStream(120, name);
+                _etLsl = _etReplay != null
+                    ? new EyeTrackingLslStream(Math.Max(1, _etReplay.SampleRate), name, _etReplay.ChannelNames)
+                    : new EyeTrackingLslStream(120, name);
                 UpdateLslStatus();
             }
             catch (Exception ex) { TxtEtStatus.Text = $"LSL ET erreur : {ex.Message}"; }

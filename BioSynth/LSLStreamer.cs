@@ -48,6 +48,10 @@ namespace BioSynth
         public static extern int lsl_push_sample_d(IntPtr outlet, double[] data);
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int lsl_push_sample_str(IntPtr outlet,
+            [In, MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.LPStr)] string[] data);
+
+        [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
         public static extern double lsl_local_clock();
 
         [DllImport(DLL, CallingConvention = CallingConvention.Cdecl)]
@@ -94,7 +98,10 @@ namespace BioSynth
         private readonly float[] _buf;
         public bool IsOpen => _outlet != IntPtr.Zero;
 
-        public EEGLslStream(int channelCount, int sampleRate, string streamName = "BioSynth_EEG")
+        /// <param name="labels">Noms de canaux réels (replay d'un enregistrement) ; null = nomenclature 10-20 de BioSynth.</param>
+        /// <param name="unit">Unité déclarée dans les métadonnées LSL.</param>
+        public EEGLslStream(int channelCount, int sampleRate, string streamName = "BioSynth_EEG",
+                            string[]? labels = null, string unit = "microvolts")
         {
             _channelCount = channelCount;
             _buf = new float[channelCount];
@@ -110,10 +117,12 @@ namespace BioSynth
             var channels = Lsl.lsl_append_child(desc, "channels");
             for (int i = 0; i < channelCount; i++)
             {
-                string label = ChannelNames.GetChannelName(i, channelCount);
+                string label = labels != null && i < labels.Length && !string.IsNullOrEmpty(labels[i])
+                    ? labels[i]
+                    : ChannelNames.GetChannelName(i, channelCount);
                 var ch = Lsl.lsl_append_child(channels, "channel");
                 Lsl.lsl_append_child_value(ch, "label",  label);
-                Lsl.lsl_append_child_value(ch, "unit",   "microvolts");
+                Lsl.lsl_append_child_value(ch, "unit",   unit);
                 Lsl.lsl_append_child_value(ch, "type",   "EEG");
                 Lsl.lsl_append_child_value(ch, "region",
                     BrainZoneController.RegionOf(label).ToString());
@@ -141,6 +150,40 @@ namespace BioSynth
     }
 
     // ════════════════════════════════════════════════════════════════════
+    // Stream LSL de marqueurs (replay : marqueurs .vmrk, colonne Marker/Var8...)
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Flux LSL irrégulier de type "Markers", 1 canal string, comme ceux produits par
+    /// BrainVision Recorder ou PsychoPy. Consommable par LabRecorder et MNE.
+    /// </summary>
+    public class MarkerLslStream : IDisposable
+    {
+        private IntPtr _outlet = IntPtr.Zero;
+        private IntPtr _info   = IntPtr.Zero;
+        public bool IsOpen => _outlet != IntPtr.Zero;
+
+        public MarkerLslStream(string streamName = "BioSynth_Markers")
+        {
+            _info = Lsl.lsl_create_streaminfo(streamName, "Markers", 1, 0 /* IRREGULAR_RATE */,
+                                              Lsl.CF_STRING, $"{streamName}-src");
+            _outlet = Lsl.lsl_create_outlet(_info, 0, 360);
+        }
+
+        public void Push(string label)
+        {
+            if (_outlet == IntPtr.Zero) return;
+            Lsl.lsl_push_sample_str(_outlet, new[] { label });
+        }
+
+        public void Dispose()
+        {
+            if (_outlet != IntPtr.Zero) { Lsl.lsl_destroy_outlet(_outlet); _outlet = IntPtr.Zero; }
+            if (_info   != IntPtr.Zero) { Lsl.lsl_destroy_streaminfo(_info); _info = IntPtr.Zero; }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
     // Stream LSL pour Eye Tracking
     // ════════════════════════════════════════════════════════════════════
 
@@ -149,10 +192,12 @@ namespace BioSynth
         private IntPtr _outlet = IntPtr.Zero;
         private IntPtr _info   = IntPtr.Zero;
 
-        // 8 canaux : GazeX, GazeY, GazeXNorm, GazeYNorm,
-        //            PupilLeft, PupilRight, ConfLeft, ConfRight
+        // Génération : 8 canaux : GazeX, GazeY, GazeXNorm, GazeYNorm,
+        //              PupilLeft, PupilRight, ConfLeft, ConfRight
+        // Replay     : les colonnes du fichier (labels fournis), poussées via PushRaw()
         private const int CH_COUNT = 8;
-        private readonly float[] _buf = new float[CH_COUNT];
+        private readonly int     _chCount;
+        private readonly float[] _buf;
 
         public bool IsOpen => _outlet != IntPtr.Zero;
 
@@ -167,21 +212,26 @@ namespace BioSynth
             "millimeters", "millimeters", "normalized", "normalized"
         };
 
-        public EyeTrackingLslStream(int sampleRate, string streamName = "BioSynth_EyeTracking")
+        /// <param name="labels">Replay : noms de colonnes du fichier ; null = 8 canaux standards.</param>
+        public EyeTrackingLslStream(int sampleRate, string streamName = "BioSynth_EyeTracking",
+                                    string[]? labels = null)
         {
+            _chCount = labels?.Length > 0 ? labels.Length : CH_COUNT;
+            _buf     = new float[_chCount];
+
             _info = Lsl.lsl_create_streaminfo(
                 streamName, "Gaze",
-                CH_COUNT, sampleRate,
+                _chCount, sampleRate,
                 Lsl.CF_FLOAT32,
-                "eyetracking-sim");
+                labels == null ? "eyetracking-sim" : $"eyetracking-replay-{_chCount}ch");
 
             var desc     = Lsl.lsl_get_desc(_info);
             var channels = Lsl.lsl_append_child(desc, "channels");
-            for (int i = 0; i < CH_COUNT; i++)
+            for (int i = 0; i < _chCount; i++)
             {
                 var ch = Lsl.lsl_append_child(channels, "channel");
-                Lsl.lsl_append_child_value(ch, "label", Labels[i]);
-                Lsl.lsl_append_child_value(ch, "unit",  Units[i]);
+                Lsl.lsl_append_child_value(ch, "label", labels != null ? labels[i] : Labels[i]);
+                Lsl.lsl_append_child_value(ch, "unit",  labels != null ? "" : Units[i]);
                 Lsl.lsl_append_child_value(ch, "type",  "Gaze");
             }
             Lsl.lsl_append_child_value(desc, "manufacturer", "BioSynth");
@@ -192,6 +242,14 @@ namespace BioSynth
         public void Push(EyeSample s)
         {
             if (_outlet == IntPtr.Zero) return;
+            // Replay : le flux a été ouvert avec les colonnes du fichier, on pousse les valeurs brutes
+            if (s.Raw != null && s.Raw.Length == _chCount)
+            {
+                for (int i = 0; i < _chCount; i++) _buf[i] = double.IsNaN(s.Raw[i]) ? 0f : (float)s.Raw[i];
+                Lsl.lsl_push_sample_f(_outlet, _buf);
+                return;
+            }
+            if (_chCount != CH_COUNT) return;
             _buf[0] = (float)s.GazeX;
             _buf[1] = (float)s.GazeY;
             _buf[2] = (float)s.GazeXNorm;

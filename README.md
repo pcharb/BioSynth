@@ -4,8 +4,6 @@ Simulateur multimodal de signaux neurophysiologiques pour le développement de p
 
 Développer un pipeline de neurorétroaction suppose un accès à des données EEG, oculaires et faciales synchronisées. En pratique, ça signifie des approbations éthiques, du matériel coûteux et des participants difficiles à recruter. BioSynth court-circuite cette dépendance en générant les trois modalités en temps réel, en les synchronisant via LSL, et en exposant une interface d'entrée pour y substituer un modèle d'IA externe.
 
-Développé dans le cadre d'un projet doctoral en Informatique Cognitive — **UQAM, Laboratoire Renaud**.
-
 ---
 
 ## Table des matières
@@ -37,7 +35,7 @@ Développé dans le cadre d'un projet doctoral en Informatique Cognitive — **U
 | **Face Tracking** | FACS/AU · 7 émotions · pose 6-DOF · machine à états · 30 Hz |
 | **LSL streaming** | 4 flux indépendants · compatible LabRecorder · BIDS via XDF |
 | **Source IA externe** | Inlet LSL — brancher n'importe quel modèle génératif comme source EEG |
-| **Replay de données** | Lecture CSV ou BIN · timing original · vitesse variable · pause/resume |
+| **Replay de données** | CSV, Excel, BrainVision (.vhdr) ou BIN · timing original · timestamps irréguliers · marqueurs · liste de lecture · vitesse variable · pause/resume |
 | **TopoMap 2D** | Carte topographique temps réel · heatmap IDW · nez en haut (convention 10-20) |
 | **Cerveau 3D** | Mesh OBJ anatomique · HelixToolkit · navigation libre |
 
@@ -127,7 +125,26 @@ Signal synthétisé par superposition de 5 oscillateurs sinusoïdaux (un par ban
 
 **Artefacts** : clignements oculaires (Fp1/Fp2, ±300 µV, 150 ms, toutes les 3–10 s) et artefacts musculaires sur les canaux temporaux.
 
-**Source sélectionnable** : génération synthétique, replay fichier CSV/BIN, ou inlet LSL (modèle IA externe).
+**Source sélectionnable** : génération synthétique, replay d'un enregistrement, ou inlet LSL (modèle IA externe).
+
+### Replay d'enregistrements réels
+
+Le mode Replay rejoue un fichier enregistré comme s'il était acquis en direct, à la cadence d'origine (ou ×0,5 à ×10), avec pause et boucle. Formats pris en charge par `RecordingLoader` :
+
+| Format | Détails |
+|--------|---------|
+| **BrainVision** `.vhdr` + `.vmrk` + `.eeg`/`.dat` | ASCII ou BINARY (INT_16, INT_32, IEEE_FLOAT_32), MULTIPLEXED ou VECTORIZED, résolution par canal, marqueurs du `.vmrk`. Sélectionner indifféremment le `.vhdr` ou le fichier de données. |
+| **CSV générique** | Séparateur (`,` `;` tab) et virgule décimale détectés. Colonne de temps devinée (`Time`, `Timestamp`, `MilliSec`, `Sec`...), colonne de marqueurs devinée (`Marker`, `Event`, `Trigger`, `Var8`...). Les colonnes `Frame`, `DataPoint`, `Index` sont ignorées. Si les pas de temps sont réguliers (écart < 5 %), une fréquence est déclarée ; sinon les échantillons sont rejoués sur leurs timestamps (ex. eye-tracking à ~90 Hz avec gigue). |
+| **Excel** `.xlsx` | Même logique que le CSV, première feuille (ClosedXML). |
+| **CSV maison / BIN** | Format d'export de BioSynth (`Timestamp_us,Ch1,...` ou `int64 + N × float32`), inchangé. |
+
+Les noms de canaux du fichier remplacent la nomenclature 10-20 dans les métadonnées du flux LSL EEG, et les marqueurs sont publiés sur un second flux LSL `<nom>_Markers` (type `Markers`, 1 canal string), compatible LabRecorder et MNE.
+
+**Liste de lecture** : le dialogue de sélection accepte plusieurs fichiers du même type (mêmes canaux, dans le même ordre). Ils sont joués à la suite par ordre alphabétique, puis en boucle si « Boucler » est coché. Les timestamps restent continus d'un fichier à l'autre (`ContinuousTimestamps`), le flux LSL n'est jamais interrompu, et l'étiquette d'enregistrement indique `REPLAY 2/5`. Les canaux sont alignés par nom sur l'union de tous les fichiers (ordre du premier, puis les canaux inédits) ; un canal absent d'un fichier est rejoué à 0 sur toute sa durée et l'inspection affiche un avertissement ⚠ qui nomme le fichier et le canal. Des fréquences différentes sont tolérées, chaque fichier étant rejoué à sa propre cadence, avec avertissement.
+
+**Replay oculométrique** : le panneau Eye Tracking a aussi une source « Replay » (radio Générer / Replay). Il utilise le même moteur (formats, liste de lecture, timestamps irréguliers, vitesse, pause, boucle) via `EyeTrackingReplay`. Les colonnes reconnues par leur nom (`GazeX`, `GazeY`, `PupilL_mm`, `ConfR`, `Blink`, `Velocity_dps`... y compris l'export CSV de BioSynth) alimentent les champs standards d'`EyeSample` et donc les sorties UDP/TCP binaires et les statistiques ; toutes les colonnes numériques du fichier, reconnues ou non (par exemple des angles de regard), sont conservées dans `EyeSample.Raw` et publiées telles quelles sur le flux LSL `Gaze`, avec les noms de colonnes du fichier comme labels. La case « Colonnes brutes en sortie » (option `IncludeRawColumns`) les fait aussi passer dans les sorties UDP/TCP, qui basculent alors du binaire 46 octets vers une ligne JSON par échantillon (`{"type":"et","t_us":…,"gx":…,"raw":{"AngleYeuxDevant":…}}`), et dans l'export CSV, où elles sont ajoutées après les colonnes standards. Décochée, les sorties gardent le format binaire habituel.
+
+Si l'heuristique se trompe de colonne, `TabularReader.TimeColumn` et `TabularReader.MarkerColumn` permettent de forcer les noms avant l'ouverture.
 
 ### Eye Tracking
 
@@ -243,6 +260,7 @@ dotnet test --collect:"XPlat Code Coverage"
 | `BrainZoneControllerTests.cs` | `BrainZoneController` | 23 |
 | `EEGGeneratorTests.cs` | `EEGGenerator` | 10 |
 | `EEGDataReplayTests.cs` | `EEGDataReplay` | 14 |
+| `RecordingReadersTests.cs` | `RecordingLoader`, `TabularReader`, `BrainVisionReader`, liste de lecture, replay oculométrique | 20 |
 | `EyeTrackingGeneratorTests.cs` | `EyeTrackingGenerator` | 8 |
 | `FaceTrackingGeneratorTests.cs` | `FaceTrackingGenerator` | 13 |
 
@@ -258,10 +276,12 @@ BioSynth/
 │   ├── App.xaml / App.xaml.cs
 │   ├── MainWindow.xaml / .cs
 │   ├── EEGGenerator.cs              # 5 bandes, zones cérébrales, artefacts
+│   ├── EyeTrackingReplay.cs         # Rejeu d'enregistrements oculométriques réels
 │   ├── EyeTrackingGenerator.cs      # FSM oculomotrice, loi séquence principale
 │   ├── FaceTrackingGenerator.cs     # FACS/AU, 7 émotions, pose 6-DOF
 │   ├── BrainZoneController.cs       # 7 régions anatomiques, positions 10-20
-│   ├── EEGDataReplay.cs             # Lecture CSV/BIN, timing, vitesse variable
+│   ├── EEGDataReplay.cs             # Rejeu : timing, vitesse variable, marqueurs
+│   ├── RecordingReaders.cs          # Lecteurs CSV générique, Excel, BrainVision
 │   ├── EEGLslInlet.cs               # Inlet LSL — source IA externe
 │   ├── EEGTopoMap.cs                # Interpolation IDW, heatmap
 │   ├── TopoMapWindow.cs
