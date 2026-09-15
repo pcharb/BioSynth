@@ -368,4 +368,5 @@ Toute modification doit être redistribuée sous la même licence.
 
 ---
 
-*BioSynth — Philippe Charbonneau - 2026*
+*BioSynth — Philippe Charbonneau · 2026*
+
