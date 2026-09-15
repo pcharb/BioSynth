@@ -127,6 +127,14 @@ Signal synthétisé par superposition de 5 oscillateurs sinusoïdaux (un par ban
 
 **Source sélectionnable** : génération synthétique, replay d'un enregistrement, ou inlet LSL (modèle IA externe).
 
+### Organisation en onglets
+
+La fenêtre est divisée en quatre onglets : **EEG**, **Eye Tracking** et **Face Tracking** regroupent chacun la configuration, la source (génération, replay, inlet LSL) et le bouton de démarrage de leur modalité ; **Visualisation** rassemble tous les graphes (oscilloscope EEG, carte de regard et traces oculométriques, émotions et pose faciale, spectre et statistiques). Les acquisitions continuent en arrière-plan quel que soit l'onglet affiché ; seul le redessin des graphes est suspendu quand l'onglet Visualisation n'est pas visible, ce qui économise du CPU.
+
+### Thème clair / sombre
+
+L'interface suit le réglage Windows « Choisir votre couleur par défaut pour les applications » (Paramètres → Personnalisation → Couleurs) et bascule en direct quand il change, sans redémarrer. Les palettes sont dans `Themes/Dark.xaml` et `Themes/Light.xaml` : chaque couleur existe sous une clé `Color.<Nom>` (code-behind, via `Theme.Color` / `Theme.Brush`) et `Brush.<Nom>` (XAML, via `{DynamicResource}`). La liste déroulante en haut du panneau gauche (◐ Auto / ☀ Clair / ☾ Sombre) permet de forcer un thème ; le choix est mémorisé dans `%LocalAppData%\BioSynth\theme.txt` et « Auto » rétablit le suivi de Windows.
+
 ### Replay d'enregistrements réels
 
 Le mode Replay rejoue un fichier enregistré comme s'il était acquis en direct, à la cadence d'origine (ou ×0,5 à ×10), avec pause et boucle. Formats pris en charge par `RecordingLoader` :
@@ -281,6 +289,8 @@ BioSynth/
 │   ├── FaceTrackingGenerator.cs     # FACS/AU, 7 émotions, pose 6-DOF
 │   ├── BrainZoneController.cs       # 7 régions anatomiques, positions 10-20
 │   ├── EEGDataReplay.cs             # Rejeu : timing, vitesse variable, marqueurs
+│   ├── Theme.cs                     # Thème clair/sombre suivant Windows
+│   ├── Themes/Dark.xaml, Light.xaml # Palettes
 │   ├── RecordingReaders.cs          # Lecteurs CSV générique, Excel, BrainVision
 │   ├── EEGLslInlet.cs               # Inlet LSL — source IA externe
 │   ├── EEGTopoMap.cs                # Interpolation IDW, heatmap
@@ -358,4 +368,4 @@ Toute modification doit être redistribuée sous la même licence.
 
 ---
 
-*BioSynth — Philippe Charbonneau · Doctorat en Informatique Cognitive · UQAM · Laboratoire Renaud · 2026*
+*BioSynth — Philippe Charbonneau - 2026*

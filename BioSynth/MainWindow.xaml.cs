@@ -58,8 +58,8 @@ namespace BioSynth
                        _etRawMinY = double.MaxValue, _etRawMaxY = double.MinValue;
         private static readonly Color[] EtRawColors =
         {
-            Color.FromRgb(0, 212, 255), Color.FromRgb(251, 191, 36), Color.FromRgb(0, 255, 136), Color.FromRgb(236, 72, 153),
-            Color.FromRgb(139, 92, 246), Color.FromRgb(255, 165, 0), Color.FromRgb(148, 163, 184), Color.FromRgb(255, 68, 68),
+            Theme.Color("AccentCyan"), Theme.Color("AccentAmber"), Theme.Color("AccentGreen"), Theme.Color("AccentPink"),
+            Theme.Color("AccentViolet"), Theme.Color("AccentOrange"), Theme.Color("TextSecondary"), Theme.Color("AccentRed"),
         };
         private readonly double[] _pupilBufL = new double[ET_BUFFER];
         private readonly double[] _pupilBufR = new double[ET_BUFFER];
@@ -86,13 +86,13 @@ namespace BioSynth
         // Couleurs des 7 émotions
         private static readonly Color[] EmotionColors =
         {
-            Color.FromRgb(139,  92, 246),  // Neutral  — violet
-            Color.FromRgb(251, 191,  36),  // Happy    — jaune
-            Color.FromRgb(  0, 212, 255),  // Sad      — cyan
-            Color.FromRgb(255,  68,  68),  // Angry    — rouge
-            Color.FromRgb(255, 165,   0),  // Surprised— orange
-            Color.FromRgb(236,  72, 153),  // Fearful  — rose
-            Color.FromRgb( 34, 197,  94),  // Disgusted— vert
+            Theme.Color("AccentViolet"),  // Neutral  — violet
+            Theme.Color("AccentAmber"),  // Happy    — jaune
+            Theme.Color("AccentCyan"),  // Sad      — cyan
+            Theme.Color("AccentRed"),  // Angry    — rouge
+            Theme.Color("AccentOrange"),  // Surprised— orange
+            Theme.Color("AccentPink"),  // Fearful  — rose
+            Theme.Color("AccentGreenAlt"),  // Disgusted— vert
         };
         private static readonly string[] EmotionNames =
             { "NEUTRAL","HAPPY","SAD","ANGRY","SURPRISED","FEARFUL","DISGUSTED" };
@@ -134,20 +134,27 @@ namespace BioSynth
 
         private static readonly Color[] ChanColors =
         {
-            Color.FromRgb(  0, 255, 136),
-            Color.FromRgb(  0, 212, 255),
-            Color.FromRgb(139,  92, 246),
-            Color.FromRgb(251, 191,  36),
-            Color.FromRgb(255,  68,  68),
-            Color.FromRgb(255, 165,   0),
-            Color.FromRgb(236,  72, 153),
-            Color.FromRgb( 34, 197,  94),
+            Theme.Color("AccentGreen"),
+            Theme.Color("AccentCyan"),
+            Theme.Color("AccentViolet"),
+            Theme.Color("AccentAmber"),
+            Theme.Color("AccentRed"),
+            Theme.Color("AccentOrange"),
+            Theme.Color("AccentPink"),
+            Theme.Color("AccentGreenAlt"),
         };
 
         // ═════════════════════════════════════════════════════════════════════
         public MainWindow()
         {
             InitializeComponent();
+
+            // Les couleurs affectées en code-behind ne suivent pas DynamicResource : on les réapplique
+            Theme.ThemeChanged += () => Dispatcher.BeginInvoke(RefreshThemedCodeBehind);
+            // Refléter la préférence sauvegardée (Auto / Clair / Sombre) sans redéclencher le handler
+            string pref = Theme.LoadPreference();
+            foreach (ComboBoxItem it in CbTheme.Items)
+                if (it.Tag?.ToString() == pref) { CbTheme.SelectedItem = it; break; }
 
             _renderTimer = new DispatcherTimer(DispatcherPriority.Render)
             {
@@ -183,8 +190,8 @@ namespace BioSynth
 
                 var border = new Border
                 {
-                    Background      = new SolidColorBrush(Color.FromRgb(17, 24, 39)),
-                    BorderBrush     = new SolidColorBrush(Color.FromRgb(30, 58, 95)),
+                    Background      = Theme.Brush("BgPanelAlt"),
+                    BorderBrush     = Theme.Brush("Border"),
                     BorderThickness = new Thickness(0, 0, 0, 1),
                     Height          = 88,
                 };
@@ -208,7 +215,7 @@ namespace BioSynth
 
                 canvas.Children.Add(new Line
                 {
-                    Stroke = new SolidColorBrush(Color.FromRgb(30, 58, 95)),
+                    Stroke = Theme.Brush("Border"),
                     StrokeThickness = 0.5,
                     X1 = 0, Y1 = 44, X2 = 9999, Y2 = 44,
                     IsHitTestVisible = false
@@ -261,13 +268,12 @@ namespace BioSynth
         // Tick rendu ~30 fps
         private void OnRenderTick(object? sender, EventArgs e)
         {
+            // Onglet Visualisation masqué : on vide quand même les files (stats, compteurs) mais sans redessiner
+            bool draw = TabViz?.IsSelected == true;
             DrainEegQueue();
             DrainEtQueue();
             DrainFtQueues();
-            RedrawEeg();
-            RedrawEt();
-            RedrawFt();
-            UpdateSpectralBars();
+            if (draw) { RedrawEeg(); RedrawEt(); RedrawFt(); UpdateSpectralBars(); }
             UpdateStatusDots();
         }
 
@@ -357,10 +363,10 @@ namespace BioSynth
                 };
                 TxtEtEventDetail.Foreground = s.EventType switch
                 {
-                    "saccade"      => new SolidColorBrush(Color.FromRgb(251, 191, 36)),
-                    "microsaccade" => new SolidColorBrush(Color.FromRgb(255, 165,  0)),
-                    "blink"        => new SolidColorBrush(Color.FromRgb(236,  72,153)),
-                    _              => new SolidColorBrush(Color.FromRgb(  0, 255,136))
+                    "saccade"      => Theme.Brush("AccentAmber"),
+                    "microsaccade" => Theme.Brush("AccentOrange"),
+                    "blink"        => Theme.Brush("AccentPink"),
+                    _              => Theme.Brush("AccentGreen")
                 };
 
                 if (s.EventType == "fixation")   _fixCount++;
@@ -409,8 +415,8 @@ namespace BioSynth
                 TxtPupilTitle.Text = "DIAMÈTRE PUPILLAIRE";
                 LblGazeX.Text = "GAZE X"; LblGazeY.Text = "GAZE Y";
                 LblPupilL.Text = "PUPILLE G (mm)"; LblPupilR.Text = "PUPILLE D (mm)";
-                AddLegend("Gauche", Color.FromRgb(139, 92, 246));
-                AddLegend("Droite", Color.FromRgb(236, 72, 153));
+                AddLegend("Gauche", Theme.Color("AccentViolet"));
+                AddLegend("Droite", Theme.Color("AccentPink"));
                 return;
             }
 
@@ -439,7 +445,7 @@ namespace BioSynth
             void AddLegend(string text, Color color)
             {
                 PupilLegend.Children.Add(new Ellipse { Width = 8, Height = 8, Fill = new SolidColorBrush(color), Margin = new Thickness(0, 0, 4, 0) });
-                PupilLegend.Children.Add(new TextBlock { Text = text, Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
+                PupilLegend.Children.Add(new TextBlock { Text = text, Foreground = Theme.Brush("TextMuted"),
                                                          FontFamily = new FontFamily("Consolas"), FontSize = 9, Margin = new Thickness(0, 0, 10, 0) });
             }
         }
@@ -557,10 +563,10 @@ namespace BioSynth
 
             GazeDot.Fill = _lastEvt switch
             {
-                "blink"        => new SolidColorBrush(Color.FromRgb(236,  72, 153)),
-                "saccade"      => new SolidColorBrush(Color.FromRgb(251, 191,  36)),
-                "microsaccade" => new SolidColorBrush(Color.FromRgb(255, 165,   0)),
-                _              => new SolidColorBrush(Color.FromRgb(  0, 212, 255))
+                "blink"        => Theme.Brush("AccentPink"),
+                "saccade"      => Theme.Brush("AccentAmber"),
+                "microsaccade" => Theme.Brush("AccentOrange"),
+                _              => Theme.Brush("AccentCyan")
             };
 
             if (_etRawMode) { RedrawEtRaw(); return; }
@@ -675,7 +681,7 @@ namespace BioSynth
                     Height          = 8,
                     Maximum         = 100,
                     Value           = i == 0 ? 100 : 0,
-                    Background      = new SolidColorBrush(Color.FromRgb(26, 32, 53)),
+                    Background      = Theme.Brush("BgChip"),
                     Foreground      = new SolidColorBrush(EmotionColors[i]),
                     BorderThickness = new Thickness(0),
                     VerticalAlignment = VerticalAlignment.Center
@@ -697,11 +703,11 @@ namespace BioSynth
             // Couleurs par région anatomique
             Color RegionColor(int i) => i switch
             {
-                <= 16 => Color.FromRgb( 71,  85, 105),  // contour
-                <= 26 => Color.FromRgb(251, 191,  36),  // sourcils
-                <= 35 => Color.FromRgb(  0, 212, 255),  // nez
-                <= 47 => Color.FromRgb(  0, 255, 136),  // yeux
-                _     => Color.FromRgb(236,  72, 153),  // bouche
+                <= 16 => Theme.Color("TextDim"),  // contour
+                <= 26 => Theme.Color("AccentAmber"),  // sourcils
+                <= 35 => Theme.Color("AccentCyan"),  // nez
+                <= 47 => Theme.Color("AccentGreen"),  // yeux
+                _     => Theme.Color("AccentPink"),  // bouche
             };
 
             for (int i = 0; i < 68; i++)
@@ -742,18 +748,18 @@ namespace BioSynth
 
             TxtEegActiveLabel.Text = _eegRunning ? "OUI" : "NON";
             TxtEegActiveLabel.Foreground = _eegRunning
-                ? new SolidColorBrush(Color.FromRgb(0, 255, 136))
-                : new SolidColorBrush(Color.FromRgb(255, 68, 68));
+                ? Theme.Brush("AccentGreen")
+                : Theme.Brush("AccentRed");
 
             TxtEtActiveLabel.Text = _etRunning ? "OUI" : "NON";
             TxtEtActiveLabel.Foreground = _etRunning
-                ? new SolidColorBrush(Color.FromRgb(0, 212, 255))
-                : new SolidColorBrush(Color.FromRgb(255, 68, 68));
+                ? Theme.Brush("AccentCyan")
+                : Theme.Brush("AccentRed");
 
             TxtFtActiveLabel.Text = _ftRunning ? "OUI" : "NON";
             TxtFtActiveLabel.Foreground = _ftRunning
-                ? new SolidColorBrush(Color.FromRgb(139, 92, 246))
-                : new SolidColorBrush(Color.FromRgb(255, 68, 68));
+                ? Theme.Brush("AccentViolet")
+                : Theme.Brush("AccentRed");
 
             if (_ftRunning) RecDotFt.Opacity = half ? 1.0 : 0.15;
 
@@ -761,10 +767,10 @@ namespace BioSynth
                               : (_eegRunning && _etRunning) || (_eegRunning && _ftRunning) || (_etRunning && _ftRunning) ? "SYNC2"
                               : "—";
             TxtSyncLabel.Foreground = TxtSyncLabel.Text == "SYNC3"
-                ? new SolidColorBrush(Color.FromRgb(139, 92, 246))
+                ? Theme.Brush("AccentViolet")
                 : TxtSyncLabel.Text == "SYNC2"
-                ? new SolidColorBrush(Color.FromRgb(0, 212, 255))
-                : new SolidColorBrush(Color.FromRgb(100, 116, 139));
+                ? Theme.Brush("AccentCyan")
+                : Theme.Brush("TextMuted");
         }
 
         // ═════════════════════════════════════════════════════════════════════
@@ -800,12 +806,12 @@ namespace BioSynth
                 if (PbReplayProgress != null) PbReplayProgress.Value = _replay.ProgressPct;
                 if (TxtReplayProgress != null) TxtReplayProgress.Text = $"{_replay.ProgressPct:F1}%";
                 TxtReplayActiveLabel.Text = "OUI";
-                TxtReplayActiveLabel.Foreground = new SolidColorBrush(Color.FromRgb(0, 212, 255));
+                TxtReplayActiveLabel.Foreground = Theme.Brush("AccentCyan");
             }
             else
             {
                 TxtReplayActiveLabel.Text = "NON";
-                TxtReplayActiveLabel.Foreground = new SolidColorBrush(Color.FromRgb(255, 68, 68));
+                TxtReplayActiveLabel.Foreground = Theme.Brush("AccentRed");
             }
             TxtFixationCount.Text = _fixCount.ToString("N0");
             TxtSaccadeCount.Text  = _sacCount.ToString("N0");
@@ -858,10 +864,10 @@ namespace BioSynth
             _statsTimer.Start();
 
             BtnStartStop.Content    = "■  ARRÊTER EEG";
-            BtnStartStop.Background = new SolidColorBrush(Color.FromRgb(180, 30, 30));
+            BtnStartStop.Background = Theme.Brush("BtnDanger");
             BtnStartStop.Foreground = Brushes.White;
             TxtRecLabel.Text        = "● EEG REC";
-            TxtRecLabel.Foreground  = new SolidColorBrush(Color.FromRgb(0, 255, 136));
+            TxtRecLabel.Foreground  = Theme.Brush("AccentGreen");
             RecDotEeg.Opacity       = 1;
             SetEegControlsEnabled(false);
         }
@@ -881,10 +887,10 @@ namespace BioSynth
             UpdateLslStatus();
 
             BtnStartStop.Content    = "▶  DÉMARRER EEG";
-            BtnStartStop.Background = new SolidColorBrush(Color.FromRgb(0, 196, 106));
-            BtnStartStop.Foreground = new SolidColorBrush(Color.FromRgb(10, 14, 26));
+            BtnStartStop.Background = Theme.Brush("AccentGreenC");
+            BtnStartStop.Foreground = Theme.Brush("BgWindow");
             TxtRecLabel.Text        = "EEG IDLE";
-            TxtRecLabel.Foreground  = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+            TxtRecLabel.Foreground  = Theme.Brush("TextMuted");
             RecDotEeg.Opacity       = 0;
             TxtStatus.Text          = "EEG arrêté.";
             SetEegControlsEnabled(true);
@@ -974,10 +980,10 @@ namespace BioSynth
             _statsTimer.Start();
 
             BtnStartStop.Content    = "■  ARRÊTER";
-            BtnStartStop.Background = new SolidColorBrush(Color.FromRgb(180, 30, 30));
+            BtnStartStop.Background = Theme.Brush("BtnDanger");
             BtnStartStop.Foreground = Brushes.White;
             TxtRecLabel.Text        = "● REPLAY";
-            TxtRecLabel.Foreground  = new SolidColorBrush(Color.FromRgb(0, 212, 255));
+            TxtRecLabel.Foreground  = Theme.Brush("AccentCyan");
             RecDotEeg.Opacity       = 1;
             TxtSourceMode.Text      = "REPLAY";
             if (BtnReplayPause != null) BtnReplayPause.Visibility = Visibility.Visible;
@@ -1028,10 +1034,10 @@ namespace BioSynth
             _statsTimer.Start();
 
             BtnEtStartStop.Content    = "■  ARRÊTER ET";
-            BtnEtStartStop.Background = new SolidColorBrush(Color.FromRgb(12, 74, 110));
-            BtnEtStartStop.Foreground = new SolidColorBrush(Color.FromRgb(0, 212, 255));
+            BtnEtStartStop.Background = Theme.Brush("BtnStop");
+            BtnEtStartStop.Foreground = Theme.Brush("AccentCyan");
             TxtEtRecLabel.Text        = _etReplay != null ? "● ET REPLAY" : "● ET REC";
-            TxtEtRecLabel.Foreground  = new SolidColorBrush(Color.FromRgb(0, 212, 255));
+            TxtEtRecLabel.Foreground  = Theme.Brush("AccentCyan");
             RecDotEt.Opacity          = 1;
             SetEtControlsEnabled(false);
         }
@@ -1050,10 +1056,10 @@ namespace BioSynth
             UpdateLslStatus();
 
             BtnEtStartStop.Content    = "▶  DÉMARRER ET";
-            BtnEtStartStop.Background = new SolidColorBrush(Color.FromRgb(14, 90, 130));
-            BtnEtStartStop.Foreground = new SolidColorBrush(Color.FromRgb(0, 212, 255));
+            BtnEtStartStop.Background = Theme.Brush("BtnStart");
+            BtnEtStartStop.Foreground = Theme.Brush("AccentCyan");
             TxtEtRecLabel.Text        = "ET IDLE";
-            TxtEtRecLabel.Foreground  = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+            TxtEtRecLabel.Foreground  = Theme.Brush("TextMuted");
             RecDotEt.Opacity          = 0;
             TxtEtStatus.Text          = "ET arrêté.";
             SetEtControlsEnabled(true);
@@ -1086,10 +1092,10 @@ namespace BioSynth
 
             string modeTxt = cfg.StreamMode == FaceStreamMode.EmotionOnly ? "ÉMOTION" : "FACE";
             BtnFtStartStop.Content    = "■  ARRÊTER FT";
-            BtnFtStartStop.Background = new SolidColorBrush(Color.FromRgb(60, 20, 100));
-            BtnFtStartStop.Foreground = new SolidColorBrush(Color.FromRgb(139, 92, 246));
+            BtnFtStartStop.Background = Theme.Brush("BgPurpleCode");
+            BtnFtStartStop.Foreground = Theme.Brush("AccentViolet");
             TxtFtRecLabel.Text        = "● FT REC";
-            TxtFtRecLabel.Foreground  = new SolidColorBrush(Color.FromRgb(139, 92, 246));
+            TxtFtRecLabel.Foreground  = Theme.Brush("AccentViolet");
             TxtFtModeLabel.Text       = modeTxt;
             RecDotFt.Opacity          = 1;
             SetFtControlsEnabled(false);
@@ -1104,10 +1110,10 @@ namespace BioSynth
             UpdateLslStatus();
 
             BtnFtStartStop.Content    = "▶  DÉMARRER FT";
-            BtnFtStartStop.Background = new SolidColorBrush(Color.FromRgb(59, 31, 106));
-            BtnFtStartStop.Foreground = new SolidColorBrush(Color.FromRgb(139, 92, 246));
+            BtnFtStartStop.Background = Theme.Brush("BgPurpleDeep");
+            BtnFtStartStop.Foreground = Theme.Brush("AccentViolet");
             TxtFtRecLabel.Text        = "FT IDLE";
-            TxtFtRecLabel.Foreground  = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+            TxtFtRecLabel.Foreground  = Theme.Brush("TextMuted");
             RecDotFt.Opacity          = 0;
             TxtFtStatus.Text          = "FT arrêté.";
             SetFtControlsEnabled(true);
@@ -1314,7 +1320,7 @@ namespace BioSynth
             using var tmp = new EyeTrackingReplay(files);
             var (ok, info, _, _, _) = tmp.Inspect();
             TxtEtReplayInfo.Text       = info;
-            TxtEtReplayInfo.Foreground = new SolidColorBrush(ok ? Color.FromRgb(0, 212, 255) : Color.FromRgb(239, 68, 68));
+            TxtEtReplayInfo.Foreground = new SolidColorBrush(ok ? Theme.Color("AccentCyan") : Theme.Color("AccentRedAlt"));
         }
 
         private bool StartEtReplay()
@@ -1519,7 +1525,7 @@ namespace BioSynth
                 ? $"✓ {info}"
                 : $"✗ {info}";
             TxtReplayInfo.Foreground = new SolidColorBrush(
-                ok ? Color.FromRgb(0, 200, 100) : Color.FromRgb(255, 80, 80));
+                ok ? Theme.Color("AccentGreenB") : Theme.Color("AccentRedSoft"));
         }
 
         private void CbReplaySpeed_Changed(object sender, SelectionChangedEventArgs e)
@@ -1607,7 +1613,7 @@ namespace BioSynth
             if (!_lslAvailable)
             {
                 TxtLslStatus.Text = "⚠ lsl.dll introuvable — voir README_LSL.txt";
-                TxtLslStatus.Foreground = new SolidColorBrush(Color.FromRgb(251, 191, 36));
+                TxtLslStatus.Foreground = Theme.Brush("AccentAmber");
                 return;
             }
             var active = new System.Collections.Generic.List<string>();
@@ -1618,8 +1624,8 @@ namespace BioSynth
                 ? $"● LSL actif : {string.Join(", ", active)}"
                 : "○ LSL — cocher pour activer";
             TxtLslStatus.Foreground = new SolidColorBrush(active.Count > 0
-                ? Color.FromRgb(0, 255, 136)
-                : Color.FromRgb(100, 116, 139));
+                ? Theme.Color("AccentGreen")
+                : Theme.Color("TextMuted"));
         }
 
         private void ChkLslEeg_Changed(object sender, RoutedEventArgs e)
@@ -1744,10 +1750,10 @@ namespace BioSynth
             _statsTimer.Start();
 
             BtnStartStop.Content    = "■  ARRÊTER";
-            BtnStartStop.Background = new SolidColorBrush(Color.FromRgb(180, 30, 30));
+            BtnStartStop.Background = Theme.Brush("BtnDanger");
             BtnStartStop.Foreground = Brushes.White;
             TxtRecLabel.Text        = "● LSL IA";
-            TxtRecLabel.Foreground  = new SolidColorBrush(Color.FromRgb(167, 139, 250));
+            TxtRecLabel.Foreground  = Theme.Brush("AccentLavender");
             RecDotEeg.Opacity       = 1;
             TxtSourceMode.Text      = "LSL IA";
             SetEegControlsEnabled(false);
@@ -1766,6 +1772,37 @@ namespace BioSynth
                 private void TxtSampleRate_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
         {
             e.Handled = !int.TryParse(e.Text, out _);
+        }
+
+        private void MainTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Les ComboBox contenues dans les onglets propagent aussi SelectionChanged
+            if (!ReferenceEquals(e.OriginalSource, MainTabs)) return;
+            if (TabViz?.IsSelected == true) { RedrawEt(); }   // rafraîchir tout de suite en arrivant sur l'onglet
+        }
+
+        private void CbTheme_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (CbTheme?.SelectedItem is not ComboBoxItem item) return;
+            switch (item.Tag?.ToString())
+            {
+                case "Light": Theme.FollowSystem = false; Theme.Apply(dark: false); break;
+                case "Dark":  Theme.FollowSystem = false; Theme.Apply(dark: true);  break;
+                default:      Theme.FollowSystem = true;  Theme.Apply(Theme.IsSystemDark()); break;
+            }
+            Theme.SavePreference(item.Tag?.ToString() ?? "Auto");
+        }
+
+        /// <summary>Réapplique les couleurs posées en code-behind (boutons, étiquettes d'état) après un changement de thème.</summary>
+        private void RefreshThemedCodeBehind()
+        {
+            if (_eegRunning) { BtnStartStop.Background = Theme.Brush("BtnDanger");    BtnStartStop.Foreground = Brushes.White; }
+            else             { BtnStartStop.Background = Theme.Brush("AccentGreenC"); BtnStartStop.Foreground = Theme.Brush("BgWindow"); }
+            TxtRecLabel.Foreground = _eegRunning ? Theme.Brush("AccentGreen") : Theme.Brush("TextMuted");
+
+            BtnEtStartStop.Background = _etRunning ? Theme.Brush("BtnStop") : Theme.Brush("BtnStart");
+            BtnEtStartStop.Foreground = Theme.Brush("AccentCyan");
+            TxtEtRecLabel.Foreground  = _etRunning ? Theme.Brush("AccentCyan") : Theme.Brush("TextMuted");
         }
 
         protected override void OnClosed(EventArgs e)

@@ -95,6 +95,16 @@ crash-*.txt
 *.pdf
 *.docx
 
+# ── Archives & LaTeX ─────────────────────────────────────
+*.zip
+*.tex
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+
 # ── Tests & couverture ───────────────────────────────────
 TestResults/
 coverage/

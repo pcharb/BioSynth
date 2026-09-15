@@ -1,0 +1,104 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Thème clair : généré avec Theme.cs ; les clés Color.* servent au code-behind, Brush.* au XAML -->
+    <Color x:Key="Color.BgWindow">#F1F5F9</Color>
+    <Color x:Key="Color.BgCanvas">#FFFFFF</Color>
+    <Color x:Key="Color.BgHeader">#E2E8F0</Color>
+    <Color x:Key="Color.BgPanel">#FFFFFF</Color>
+    <Color x:Key="Color.BgPanelAlt">#F8FAFC</Color>
+    <Color x:Key="Color.BgInset">#E2E8F0</Color>
+    <Color x:Key="Color.BgSection">#E0E7FF</Color>
+    <Color x:Key="Color.BgSectionDeep">#DBEAFE</Color>
+    <Color x:Key="Color.Border">#CBD5E1</Color>
+    <Color x:Key="Color.BorderAlt">#CBD5E1</Color>
+    <Color x:Key="Color.BorderStrong">#93C5FD</Color>
+    <Color x:Key="Color.BgPurple">#F5F3FF</Color>
+    <Color x:Key="Color.BgPurpleAlt">#EDE9FE</Color>
+    <Color x:Key="Color.BgPurpleMid">#DDD6FE</Color>
+    <Color x:Key="Color.BgPurpleDeep">#C4B5FD</Color>
+    <Color x:Key="Color.BgPurpleVivid">#A78BFA</Color>
+    <Color x:Key="Color.BgPurpleCode">#C4B5FD</Color>
+    <Color x:Key="Color.BtnStart">#BAE6FD</Color>
+    <Color x:Key="Color.BtnStop">#7DD3FC</Color>
+    <Color x:Key="Color.BtnDanger">#FCA5A5</Color>
+    <Color x:Key="Color.TextPrimary">#0F172A</Color>
+    <Color x:Key="Color.TextSecondary">#475569</Color>
+    <Color x:Key="Color.TextMuted">#64748B</Color>
+    <Color x:Key="Color.TextDim">#94A3B8</Color>
+    <Color x:Key="Color.AccentCyan">#0284C7</Color>
+    <Color x:Key="Color.AccentGreen">#059669</Color>
+    <Color x:Key="Color.AccentGreenAlt">#16A34A</Color>
+    <Color x:Key="Color.AccentGreenB">#059669</Color>
+    <Color x:Key="Color.AccentGreenC">#059669</Color>
+    <Color x:Key="Color.AccentViolet">#7C3AED</Color>
+    <Color x:Key="Color.AccentLavender">#6D28D9</Color>
+    <Color x:Key="Color.AccentRed">#DC2626</Color>
+    <Color x:Key="Color.AccentRedAlt">#DC2626</Color>
+    <Color x:Key="Color.AccentRedSoft">#DC2626</Color>
+    <Color x:Key="Color.AccentAmber">#D97706</Color>
+    <Color x:Key="Color.AccentOrange">#EA580C</Color>
+    <Color x:Key="Color.AccentPink">#DB2777</Color>
+    <Color x:Key="Color.AccentLime">#65A30D</Color>
+    <Color x:Key="Color.AccentSky">#0369A1</Color>
+    <Color x:Key="Color.AccentSkyAlt">#0369A1</Color>
+
+    <Color x:Key="Color.BgGreenHeader">#DCFCE7</Color>
+    <Color x:Key="Color.BgGreenSection">#F0FDF4</Color>
+    <Color x:Key="Color.BgGreenSectionAlt">#F0FDF4</Color>
+    <Color x:Key="Color.BgBlueButton">#DBEAFE</Color>
+    <Color x:Key="Color.BgPurpleSection">#EDE9FE</Color>
+    <Color x:Key="Color.BgPurpleButton">#DDD6FE</Color>
+    <Color x:Key="Color.BgPurpleHeader">#EDE9FE</Color>
+    <Color x:Key="Color.BgCanvasPurple">#FFFFFF</Color>
+    <Color x:Key="Color.BgChip">#E2E8F0</Color>
+
+    <SolidColorBrush x:Key="Brush.BgWindow" Color="{StaticResource Color.BgWindow}"/>
+    <SolidColorBrush x:Key="Brush.BgCanvas" Color="{StaticResource Color.BgCanvas}"/>
+    <SolidColorBrush x:Key="Brush.BgHeader" Color="{StaticResource Color.BgHeader}"/>
+    <SolidColorBrush x:Key="Brush.BgPanel" Color="{StaticResource Color.BgPanel}"/>
+    <SolidColorBrush x:Key="Brush.BgPanelAlt" Color="{StaticResource Color.BgPanelAlt}"/>
+    <SolidColorBrush x:Key="Brush.BgInset" Color="{StaticResource Color.BgInset}"/>
+    <SolidColorBrush x:Key="Brush.BgSection" Color="{StaticResource Color.BgSection}"/>
+    <SolidColorBrush x:Key="Brush.BgSectionDeep" Color="{StaticResource Color.BgSectionDeep}"/>
+    <SolidColorBrush x:Key="Brush.Border" Color="{StaticResource Color.Border}"/>
+    <SolidColorBrush x:Key="Brush.BorderAlt" Color="{StaticResource Color.BorderAlt}"/>
+    <SolidColorBrush x:Key="Brush.BorderStrong" Color="{StaticResource Color.BorderStrong}"/>
+    <SolidColorBrush x:Key="Brush.BgPurple" Color="{StaticResource Color.BgPurple}"/>
+    <SolidColorBrush x:Key="Brush.BgPurpleAlt" Color="{StaticResource Color.BgPurpleAlt}"/>
+    <SolidColorBrush x:Key="Brush.BgPurpleMid" Color="{StaticResource Color.BgPurpleMid}"/>
+    <SolidColorBrush x:Key="Brush.BgPurpleDeep" Color="{StaticResource Color.BgPurpleDeep}"/>
+    <SolidColorBrush x:Key="Brush.BgPurpleVivid" Color="{StaticResource Color.BgPurpleVivid}"/>
+    <SolidColorBrush x:Key="Brush.BgPurpleCode" Color="{StaticResource Color.BgPurpleCode}"/>
+    <SolidColorBrush x:Key="Brush.BtnStart" Color="{StaticResource Color.BtnStart}"/>
+    <SolidColorBrush x:Key="Brush.BtnStop" Color="{StaticResource Color.BtnStop}"/>
+    <SolidColorBrush x:Key="Brush.BtnDanger" Color="{StaticResource Color.BtnDanger}"/>
+    <SolidColorBrush x:Key="Brush.TextPrimary" Color="{StaticResource Color.TextPrimary}"/>
+    <SolidColorBrush x:Key="Brush.TextSecondary" Color="{StaticResource Color.TextSecondary}"/>
+    <SolidColorBrush x:Key="Brush.TextMuted" Color="{StaticResource Color.TextMuted}"/>
+    <SolidColorBrush x:Key="Brush.TextDim" Color="{StaticResource Color.TextDim}"/>
+    <SolidColorBrush x:Key="Brush.AccentCyan" Color="{StaticResource Color.AccentCyan}"/>
+    <SolidColorBrush x:Key="Brush.AccentGreen" Color="{StaticResource Color.AccentGreen}"/>
+    <SolidColorBrush x:Key="Brush.AccentGreenAlt" Color="{StaticResource Color.AccentGreenAlt}"/>
+    <SolidColorBrush x:Key="Brush.AccentGreenB" Color="{StaticResource Color.AccentGreenB}"/>
+    <SolidColorBrush x:Key="Brush.AccentGreenC" Color="{StaticResource Color.AccentGreenC}"/>
+    <SolidColorBrush x:Key="Brush.AccentViolet" Color="{StaticResource Color.AccentViolet}"/>
+    <SolidColorBrush x:Key="Brush.AccentLavender" Color="{StaticResource Color.AccentLavender}"/>
+    <SolidColorBrush x:Key="Brush.AccentRed" Color="{StaticResource Color.AccentRed}"/>
+    <SolidColorBrush x:Key="Brush.AccentRedAlt" Color="{StaticResource Color.AccentRedAlt}"/>
+    <SolidColorBrush x:Key="Brush.AccentRedSoft" Color="{StaticResource Color.AccentRedSoft}"/>
+    <SolidColorBrush x:Key="Brush.AccentAmber" Color="{StaticResource Color.AccentAmber}"/>
+    <SolidColorBrush x:Key="Brush.AccentOrange" Color="{StaticResource Color.AccentOrange}"/>
+    <SolidColorBrush x:Key="Brush.AccentPink" Color="{StaticResource Color.AccentPink}"/>
+    <SolidColorBrush x:Key="Brush.AccentLime" Color="{StaticResource Color.AccentLime}"/>
+    <SolidColorBrush x:Key="Brush.AccentSky" Color="{StaticResource Color.AccentSky}"/>
+    <SolidColorBrush x:Key="Brush.AccentSkyAlt" Color="{StaticResource Color.AccentSkyAlt}"/>
+    <SolidColorBrush x:Key="Brush.BgGreenHeader" Color="{StaticResource Color.BgGreenHeader}"/>
+    <SolidColorBrush x:Key="Brush.BgGreenSection" Color="{StaticResource Color.BgGreenSection}"/>
+    <SolidColorBrush x:Key="Brush.BgGreenSectionAlt" Color="{StaticResource Color.BgGreenSectionAlt}"/>
+    <SolidColorBrush x:Key="Brush.BgBlueButton" Color="{StaticResource Color.BgBlueButton}"/>
+    <SolidColorBrush x:Key="Brush.BgPurpleSection" Color="{StaticResource Color.BgPurpleSection}"/>
+    <SolidColorBrush x:Key="Brush.BgPurpleButton" Color="{StaticResource Color.BgPurpleButton}"/>
+    <SolidColorBrush x:Key="Brush.BgPurpleHeader" Color="{StaticResource Color.BgPurpleHeader}"/>
+    <SolidColorBrush x:Key="Brush.BgCanvasPurple" Color="{StaticResource Color.BgCanvasPurple}"/>
+    <SolidColorBrush x:Key="Brush.BgChip" Color="{StaticResource Color.BgChip}"/>
+</ResourceDictionary>

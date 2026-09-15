@@ -10,6 +10,9 @@ namespace BioSynth
         {
             base.OnStartup(e);
 
+            // Thème clair / sombre selon le réglage Windows de l'utilisateur, mis à jour en direct
+            Theme.Initialize();
+
             AppDomain.CurrentDomain.UnhandledException += (s, ex) =>
             {
                 var msg = FlattenException(ex.ExceptionObject as Exception);
