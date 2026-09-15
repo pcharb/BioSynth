@@ -358,4 +358,5 @@ Toute modification doit être redistribuée sous la même licence.
 
 ---
 
-*BioSynth — Philippe Charbonneau · Doctorat en Informatique Cognitive · UQAM · Laboratoire Renaud · 2026*
+*BioSynth — Philippe Charbonneau · 2026*
+
