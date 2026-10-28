@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/cirics-logo.png" alt="CIRICS" width="360"></p>
+
 # BioSynth
 
 Simulateur multimodal de signaux neurophysiologiques pour le développement de pipelines d'interface cerveau-machine (BCI).
@@ -37,48 +39,73 @@ Développer un pipeline de neurorétroaction suppose un accès à des données E
 | **Source IA externe** | Inlet LSL — brancher n'importe quel modèle génératif comme source EEG |
 | **Replay de données** | CSV, Excel, BrainVision (.vhdr) ou BIN · timing original · timestamps irréguliers · marqueurs · liste de lecture · vitesse variable · pause/resume |
 | **TopoMap 2D** | Carte topographique temps réel · heatmap IDW · nez en haut (convention 10-20) |
-| **Cerveau 3D** | Mesh OBJ anatomique · HelixToolkit · navigation libre |
+| **Cerveau 3D** | Cerveau procédural ou maillage anatomique `.obj` · heatmap interpolée sur la surface · électrodes 10-10 · navigation libre |
+| **Multiplateforme** | Une seule application pour Windows, Linux et macOS · fenêtre dédiée · aucun paquet NuGet requis |
 
 ---
 
 ## Prérequis
 
-- **Windows 10 / 11** — WPF requis
-- **[.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)**
-- **[lsl.dll](https://github.com/sccn/liblsl/releases)** *(optionnel — uniquement pour le streaming LSL)*
+- **Windows 10 / 11, Linux ou macOS**
+- **[.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)** (Ubuntu / Debian : `sudo apt install dotnet-sdk-8.0` ; Fedora : `sudo dnf install dotnet-sdk-8.0` ; macOS : `brew install dotnet@8`)
+- **Un navigateur Chromium** pour la fenêtre d'application : Edge (présent sur tout Windows 10/11), Chrome, Chromium ou Brave. À défaut, l'interface s'ouvre dans un onglet du navigateur par défaut.
+- **liblsl** *(optionnel, uniquement pour LSL)* : voir [LSL](#lsl-optionnel).
 
 ---
 
 ## Installation
 
-```powershell
+```bash
 git clone https://github.com/pcharb/BioSynth.git
-cd BioSynth\BioSynth
-dotnet restore
+cd BioSynth
 ```
 
 ### LSL (optionnel)
 
-Télécharger `liblsl-x.x.x-Win_amd64.zip` depuis [github.com/sccn/liblsl/releases](https://github.com/sccn/liblsl/releases), extraire `lsl.dll` et le placer dans le dossier de l'exécutable :
+| Système | Installation |
+|---------|--------------|
+| Windows | Télécharger `liblsl-x.x.x-Win_amd64.zip` depuis [github.com/sccn/liblsl/releases](https://github.com/sccn/liblsl/releases) et placer `lsl.dll` dans `BioSynth\bin\Release\net8.0\` (ou `Debug`). |
+| Ubuntu / Debian | `sudo apt install ./liblsl-1.16.2-noble_amd64.deb` (paquet `jammy` pour Ubuntu 22.04), même page de téléchargement. |
+| macOS | `brew install labstreaminglayer/tap/lsl` |
 
-```
-BioSynth\bin\Debug\net8.0-windows\lsl.dll
-```
-
-Le nom exact doit être `lsl.dll` — pas `liblsl.dll` ni `liblsl64.dll`. La barre de statut affiche `○ LSL — cocher pour activer` si la DLL est correctement détectée.
+La console affiche `liblsl : détectée` au démarrage et la barre d'état `○ LSL — cocher pour activer`. Dépannage : `README_LSL.txt`.
 
 ---
 
 ## Démarrage rapide
 
-```powershell
-cd BioSynth\BioSynth
-dotnet run
+| Système | Commande |
+|---------|----------|
+| Windows | double-clic sur `BioSynth.cmd` |
+| Linux, macOS | `./run.sh` |
+| Tous | `cd BioSynth` puis `dotnet run` |
+
+L'interface s'ouvre dans une fenêtre BioSynth (navigateur en mode application, sans onglets ni barre d'adresse). Fermer la fenêtre arrête l'application ; Ctrl+C dans la console aussi.
+
+1. Choisir le nombre de canaux et le sample rate dans l'onglet EEG
+2. Cliquer **▶ DÉMARRER** sur le module souhaité (EEG, Eye Tracking, Face Tracking)
+3. Activer **LSL** via les cases à cocher pour diffuser vers LabRecorder ou tout consommateur pylsl
+4. Suivre les signaux dans l'onglet **Visualisation** ; la TopoMap s'ouvre dans sa propre fenêtre
+
+**Options** (après `dotnet run --` ou en argument des lanceurs) :
+
+| Option | Effet |
+|--------|-------|
+| `--port 6000` | autre port que 5080 |
+| `--browser` | ouvrir dans un onglet du navigateur par défaut plutôt que dans une fenêtre dédiée |
+| `--no-browser` | n'ouvrir aucune fenêtre (machine sans écran, accès par tunnel SSH) |
+| `--keep-server` | laisser le serveur actif après la fermeture de la fenêtre |
+| `--lan` | écouter sur toutes les interfaces réseau. Par défaut, BioSynth n'écoute que sur `127.0.0.1` ; à réserver à un réseau de confiance, car l'interface donne accès aux fichiers de la machine |
+
+Relancer BioSynth alors qu'il tourne déjà ouvre simplement une nouvelle fenêtre sur l'instance existante.
+
+### Version portable
+
+```bash
+dotnet publish BioSynth -c Release -o dist
 ```
 
-1. Choisir le nombre de canaux et le sample rate dans le panneau gauche
-2. Cliquer **▶ DÉMARRER** sur le module souhaité (EEG, Eye Tracking, Face Tracking)
-3. Activer **LSL** via les checkboxes pour diffuser vers LabRecorder ou tout consommateur pylsl
+Le dossier `dist/` (environ 0,5 Mo) se copie tel quel sur n'importe quelle machine Windows, Linux ou macOS disposant du runtime ASP.NET Core 8 (`aspnetcore-runtime-8.0` sous Linux) et se lance par `dotnet BioSynth.dll`. Pour une version qui n'exige aucun runtime installé, ajouter `-r win-x64`, `-r linux-x64` ou `-r osx-arm64` et `--self-contained` (un dossier par système).
 
 ---
 
@@ -131,9 +158,23 @@ Signal synthétisé par superposition de 5 oscillateurs sinusoïdaux (un par ban
 
 La fenêtre est divisée en quatre onglets : **EEG**, **Eye Tracking** et **Face Tracking** regroupent chacun la configuration, la source (génération, replay, inlet LSL) et le bouton de démarrage de leur modalité ; **Visualisation** rassemble tous les graphes (oscilloscope EEG, carte de regard et traces oculométriques, émotions et pose faciale, spectre et statistiques). Les acquisitions continuent en arrière-plan quel que soit l'onglet affiché ; seul le redessin des graphes est suspendu quand l'onglet Visualisation n'est pas visible, ce qui économise du CPU.
 
-### Thème clair / sombre
+### Thème clair / sombre et identité visuelle
 
-L'interface suit le réglage Windows « Choisir votre couleur par défaut pour les applications » (Paramètres → Personnalisation → Couleurs) et bascule en direct quand il change, sans redémarrer. Les palettes sont dans `Themes/Dark.xaml` et `Themes/Light.xaml` : chaque couleur existe sous une clé `Color.<Nom>` (code-behind, via `Theme.Color` / `Theme.Brush`) et `Brush.<Nom>` (XAML, via `{DynamicResource}`). La liste déroulante en haut du panneau gauche (◐ Auto / ☀ Clair / ☾ Sombre) permet de forcer un thème ; le choix est mémorisé dans `%LocalAppData%\BioSynth\theme.txt` et « Auto » rétablit le suivi de Windows.
+L'interface reprend l'identité du CIRICS (Centre interdisciplinaire de recherche et innovation en cybersécurité et société) : logo dans l'en-tête, les fenêtres TopoMap et Cerveau 3D, la barre d'état et l'icône, et palette déclinée du bleu du logo (`#748DC6`). Les couleurs sont des variables CSS dans `BioSynth/wwwroot/app.css`, en trois familles :
+
+- **Habillage** : `Brand*` (bleu CIRICS ; le bleu exact du logo est réservé au logo et aux grands repères, les textes utilisent une version plus foncée en clair, plus claire en sombre, pour garder un contraste d'au moins 4,5:1) et `Mod*` (une teinte par modalité dans la même famille : EEG bleu, Eye Tracking bleu-vert, Face Tracking bleu-violet) ;
+- **Données** : `S1` à `S8`, palette catégorielle à ordre fixe pour les traces des canaux, les émotions, les bandes et les colonnes oculométriques, validée pour la séparation sous daltonisme et le contraste sur les deux fonds. Les libellés restent en couleur de texte neutre, la couleur étant portée par la pastille ou la trace ;
+- **États** : `Good`, `Warn`, `Critical`, `Danger`.
+
+- **Magnitude** : `Seq0` (faible) à `Seq4` (fort), rampe séquentielle à teinte unique tirée du bleu CIRICS, pour la TopoMap et le Cerveau 3D. Elle s'inverse avec le thème (en clair, faible = pâle et fort = foncé ; en sombre, l'inverse) et chaque version est validée (luminance monotone, écarts visibles, extrémité faible distincte du fond). Le cortex du modèle 3D utilise des gris-bleus neutres (`Cortex*`).
+
+Les trois fenêtres (principale, TopoMap, Cerveau 3D) partagent ces jetons et suivent le même thème.
+
+Le thème « ◐ Auto » suit le réglage clair/sombre du système (Windows, GNOME, KDE, macOS) et bascule en direct quand il change. La liste déroulante en haut à droite permet de forcer ☀ Clair ou ☾ Sombre. Le choix du thème, l'onglet actif et les réglages des formulaires sont mémorisés d'une session à l'autre. Les logos sont dans `BioSynth/wwwroot/img/` (pictogramme et logo complet en masque transparent, recoloré par CSS selon le thème).
+
+### Fichiers
+
+Les boîtes de dialogue d'ouverture et d'enregistrement sont remplacées par un sélecteur intégré qui parcourt les dossiers de la machine (Ctrl-clic et Maj-clic pour une liste de lecture). Les fichiers de sortie vont par défaut dans le dossier `BioSynth` du répertoire personnel (`~/BioSynth`, `C:\Users\<nom>\BioSynth`). Le mode de sortie « Aucune (LSL seul) » évite d'écrire un fichier ou d'émettre en UDP/TCP quand seul LSL est utile.
 
 ### Replay d'enregistrements réels
 
@@ -143,7 +184,7 @@ Le mode Replay rejoue un fichier enregistré comme s'il était acquis en direct,
 |--------|---------|
 | **BrainVision** `.vhdr` + `.vmrk` + `.eeg`/`.dat` | ASCII ou BINARY (INT_16, INT_32, IEEE_FLOAT_32), MULTIPLEXED ou VECTORIZED, résolution par canal, marqueurs du `.vmrk`. Sélectionner indifféremment le `.vhdr` ou le fichier de données. |
 | **CSV générique** | Séparateur (`,` `;` tab) et virgule décimale détectés. Colonne de temps devinée (`Time`, `Timestamp`, `MilliSec`, `Sec`...), colonne de marqueurs devinée (`Marker`, `Event`, `Trigger`, `Var8`...). Les colonnes `Frame`, `DataPoint`, `Index` sont ignorées. Si les pas de temps sont réguliers (écart < 5 %), une fréquence est déclarée ; sinon les échantillons sont rejoués sur leurs timestamps (ex. eye-tracking à ~90 Hz avec gigue). |
-| **Excel** `.xlsx` | Même logique que le CSV, première feuille (ClosedXML). |
+| **Excel** `.xlsx` | Même logique que le CSV, première feuille (lecteur interne `XlsxReader`). |
 | **CSV maison / BIN** | Format d'export de BioSynth (`Timestamp_us,Ch1,...` ou `int64 + N × float32`), inchangé. |
 
 Les noms de canaux du fichier remplacent la nomenclature 10-20 dans les métadonnées du flux LSL EEG, et les marqueurs sont publiés sur un second flux LSL `<nom>_Markers` (type `Markers`, 1 canal string), compatible LabRecorder et MNE.
@@ -240,9 +281,11 @@ Compatible avec n'importe quel outil capable de diffuser un flux LSL : modèle P
 
 **Oscilloscope** : défilement multi-canal, échelle configurable, sélection du nombre de canaux visibles.
 
-**TopoMap 2D** : carte coronale (vue du dessus) avec heatmap par interpolation IDW de Shepard. Orientation 10-20 standard : nez en haut, occiput en bas. Bouton **🗺 TOPOMAP 2D** dans le panneau EEG.
+**TopoMap 2D** : carte coronale (vue du dessus) avec heatmap par interpolation IDW de Shepard. Orientation 10-20 standard : nez en haut, occiput en bas. Bouton **🗺 TOPOMAP 2D** dans l'onglet EEG ; la carte s'ouvre dans une fenêtre séparée et peut rester visible pendant qu'on travaille dans les autres onglets.
 
-**Cerveau 3D** : mesh OBJ anatomique rendu avec HelixToolkit. Navigation trackball libre.
+**Cerveau 3D** : bouton **🧠 CERVEAU 3D** dans l'onglet EEG (fenêtre séparée, rendu WebGL avec three.js embarqué, donc sans connexion). La heatmap est interpolée sommet par sommet à partir des électrodes, avec la même normalisation que la TopoMap (puissance du canal 70 %, activation de la zone 30 %), sur la même rampe de couleur que la TopoMap. Les électrodes sont projetées sur la surface du modèle ; celles de la ligne médiane se placent dans la scissure inter-hémisphérique. Vues prédéfinies (face, dessus, gauche, droite, arrière ; gauche et droite désignent les côtés du sujet), rotation automatique, étiquettes.
+
+Le modèle par défaut est un cerveau procédural (hémisphères à circonvolutions, scissures latérales, cervelet, tronc cérébral), suffisant pour situer l'activité mais non anatomiquement exact. Pour un maillage anatomique, placer `brain.obj` (ou `Brain_Model.obj`) dans le dossier de données `~/BioSynth/` : il est chargé automatiquement. Le bouton **OBJ…** charge un autre fichier pour la session. Les parties nommées `Brain_Part_01` à `Brain_Part_06` sont reconnues (hémisphères, cervelet et tronc colorés séparément) ; les boutons **↻ 90°** et **Axe Y / Axe Z** corrigent l'orientation d'un modèle exporté autrement, et ce réglage est mémorisé.
 
 ---
 
@@ -259,7 +302,7 @@ dotnet test --logger "console;verbosity=detailed"
 dotnet test --collect:"XPlat Code Coverage"
 ```
 
-83 tests xUnit (FluentAssertions) couvrant les 7 classes principales :
+140 cas de test xUnit (FluentAssertions, chaque ligne `InlineData` comptant pour un cas), sur le moteur `BioSynth.Core`. Ils s'exécutent de la même façon sous Windows, Linux et macOS. Répartition par fichier :
 
 | Fichier | Classe | Tests |
 |---------|--------|-------|
@@ -279,32 +322,39 @@ dotnet test --collect:"XPlat Code Coverage"
 ```
 BioSynth/
 ├── BioSynth.sln
-├── BioSynth/
+├── BioSynth.cmd                     # Lanceur Windows (double-clic)
+├── run.sh                           # Lanceur Linux / macOS
+├── README_LSL.txt                   # Installation et dépannage de liblsl
+├── BioSynth/                        # Application (serveur local + interface)
 │   ├── BioSynth.csproj
-│   ├── App.xaml / App.xaml.cs
-│   ├── MainWindow.xaml / .cs
-│   ├── EEGGenerator.cs              # 5 bandes, zones cérébrales, artefacts
-│   ├── EyeTrackingReplay.cs         # Rejeu d'enregistrements oculométriques réels
-│   ├── EyeTrackingGenerator.cs      # FSM oculomotrice, loi séquence principale
-│   ├── FaceTrackingGenerator.cs     # FACS/AU, 7 émotions, pose 6-DOF
+│   ├── Program.cs                   # Serveur, API, WebSocket, sélecteur de fichiers, options
+│   ├── AppWindow.cs                 # Fenêtre d'application (Edge / Chrome / Chromium en mode --app)
+│   ├── SimulatorHost.cs             # Pilotage des générateurs, replay, inlet et flux LSL
+│   ├── EtDisplayState.cs            # Traînée du regard, compteurs, mode colonnes brutes
+│   ├── Requests.cs                  # Commandes envoyées par l'interface
+│   └── wwwroot/
+│       ├── index.html, app.js       # Onglets EEG, Eye Tracking, Face Tracking, Visualisation
+│       ├── topomap.html, topomap.js # Carte topographique (fenêtre séparée)
+│       ├── brain3d.html, brain3d.js # Cerveau 3D (fenêtre séparée)
+│       ├── lib/three/               # three.js 0.160 (licence MIT), embarqué
+│       ├── app.css, theme.js        # Palette CIRICS, thèmes clair / sombre
+│       ├── img/                     # Logo CIRICS (pictogramme, logo complet, icône)
+├── BioSynth.Core/                   # Moteur (net8.0, sans dépendance)
+│   ├── EEGGenerator.cs              # 5 bandes, zones cérébrales, artefacts, sorties
 │   ├── BrainZoneController.cs       # 7 régions anatomiques, positions 10-20
+│   ├── EyeTrackingGenerator.cs      # FSM oculomotrice, loi séquence principale
+│   ├── EyeTrackingReplay.cs         # Rejeu d'enregistrements oculométriques réels
+│   ├── FaceTrackingGenerator.cs     # FACS/AU, 7 émotions, pose 6-DOF
 │   ├── EEGDataReplay.cs             # Rejeu : timing, vitesse variable, marqueurs
-│   ├── Theme.cs                     # Thème clair/sombre suivant Windows
-│   ├── Themes/Dark.xaml, Light.xaml # Palettes
 │   ├── RecordingReaders.cs          # Lecteurs CSV générique, Excel, BrainVision
-│   ├── EEGLslInlet.cs               # Inlet LSL — source IA externe
-│   ├── EEGTopoMap.cs                # Interpolation IDW, heatmap
-│   ├── TopoMapWindow.cs
-│   ├── LSLStreamer.cs                # 4 outlets LSL
-│   ├── BrainView3DWindow.cs         # Rendu HelixToolkit
-│   ├── BrainObjLoader.cs
-│   └── Assets/
-│       ├── brain.obj
-│       ├── brain.mtl
-│       └── brain_tex.jpg
-└── BioSynth.Tests/
-    ├── BioSynth.Tests.csproj
-    └── *.cs                         # 83 tests xUnit
+│   ├── XlsxReader.cs                # Lecture .xlsx (ZIP + XML)
+│   ├── LSLStreamer.cs               # 4 outlets LSL + marqueurs
+│   └── EEGLslInlet.cs               # Inlet LSL : source IA externe
+├── BioSynth.Tests/                  # 140 cas xUnit
+├── docs/
+│   └── cirics-logo.png              # Logo pour ce README
+└── examples/
+    └── EEGReceiver_Example.cs       # Récepteur TCP minimal
 ```
 
 ---
@@ -357,6 +407,21 @@ plt.legend()
 plt.tight_layout()
 plt.show()
 ```
+
+---
+
+## Notes de version (octobre 2026)
+
+Application unique pour Windows, Linux et macOS : serveur local ASP.NET Core et interface dans une fenêtre de navigateur dédiée, vue Cerveau 3D en WebGL. Corrections du moteur :
+
+- **Source IA externe (inlet LSL)** : `lsl_pull_sample_f` était déclaré avec un retour `int` au lieu de `double` ; en x64 l'horodatage était toujours lu comme 0 et chaque échantillon était ignoré. Le flux est aussi ouvert explicitement (`lsl_open_stream`) à la connexion, et `lsl_resolve_byprop` renvoie bien un `int`.
+- **Flux de marqueurs LSL** : `CF_STRING` valait 4 (`int32` dans liblsl) au lieu de 3 ; les marqueurs étaient publiés comme des entiers nuls.
+- **Replay BIN** : le nombre de canaux était le premier diviseur de la taille du fichier (un fichier 8 canaux × 256 trames était lu comme 2 canaux). Il est maintenant déduit de la régularité des horodatages.
+- **Replay du format d'export BioSynth** : la colonne `Timestamp_us` n'était pas reconnue comme colonne de temps par le lecteur générique ; les horodatages sont aussi arrondis au lieu d'être tronqués.
+- **Excel** : lecture par `XlsxReader` (ZIP + XML), sans ClosedXML, ce qui garde le moteur sans dépendance.
+- **Tests** : la suite ne compilait plus (`OutputMode.None`, `EyeOutputMode`, `FaceOutputMode`, `Landmarks`, `DominantEmotion`). `OutputMode.None` est ajouté au moteur et les tests suivent l'API actuelle ; les 140 cas passent sous Linux.
+- **Positions d'électrodes** : 28 électrodes des montages 32 et 64 canaux (`POz`, `F1`, `C5`, `CPz`, `T9`...) n'avaient pas de coordonnées et n'apparaissaient ni sur la TopoMap ni en 3D. Elles sont ajoutées à `BrainZoneController.ElectrodePositions` (points médians normalisés entre voisines 10-20, rangée inférieure juste sous l'équateur).
+- **TopoMap** : le gain de puissance (× 5) saturait la carte ; il est ramené à × 1,5 pour que les états mentaux couvrent toute l'échelle de couleurs. La puissance est calculée sur tous les canaux, et non sur les seuls canaux affichés.
 
 ---
 

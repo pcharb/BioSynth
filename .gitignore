@@ -40,3 +40,12 @@ TestResults/
 *.vmrk
 *.dat
 *.xlsx
+
+# ── LSL : bibliothèque native (à installer séparément) ──
+lsl.dll
+liblsl*.dll
+liblsl*.so*
+liblsl*.dylib
+
+# ── Publication ──────────────────────────────────────────
+dist/

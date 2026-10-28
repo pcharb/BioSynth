@@ -65,7 +65,7 @@ Certains tests attendent des événements physiologiques simulés
 ══════════════════════════════════════════════════════
 
   - .NET 8 SDK
-  - Windows (WPF requis pour le projet principal)
+  - Windows, Linux ou macOS (les tests visent le moteur BioSynth.Core)
   - Pas besoin de lsl.dll ni d'équipement matériel
   - Les tests LSL sont exclus (nécessiteraient un réseau LSL actif)
 ═══════════════════════════════════════════════════════════

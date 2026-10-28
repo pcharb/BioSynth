@@ -14,7 +14,7 @@ public class EyeTrackingTests : IDisposable
         SampleRate  = 120,
         ScreenWidth = 1920,
         ScreenHeight= 1080,
-        OutputMode  = EyeOutputMode.None,
+        OutputMode  = OutputMode.None,
     };
 
     private EyeTrackingGenerator? _gen;

@@ -13,9 +13,8 @@ public class FaceTrackingGeneratorTests : IDisposable
     private readonly FaceTrackingConfig _cfg = new()
     {
         SampleRate       = 30,
-        OutputMode       = FaceOutputMode.None,
+        OutputMode       = OutputMode.None,
         EmotionChangeSec = 2.0,
-        AddArtifacts     = false,
     };
 
     private FaceTrackingGenerator? _gen;
@@ -166,7 +165,7 @@ public class FaceTrackingGeneratorTests : IDisposable
         _gen.Stop();
 
         faces.Should().NotBeEmpty();
-        faces.Should().OnlyContain(s => s.Landmarks.Length == 68,
+        faces.Should().OnlyContain(s => s.LandmarkX.Length == 68 && s.LandmarkY.Length == 68,
             because: "le modèle de landmarks faciaux standard a 68 points");
     }
 
@@ -214,14 +213,14 @@ public class FaceTrackingGeneratorTests : IDisposable
         var cfg = new FaceTrackingConfig
         {
             SampleRate       = 30,
-            OutputMode       = FaceOutputMode.None,
+            OutputMode       = OutputMode.None,
             EmotionChangeSec = 0.5,   // transitions rapides pour le test
         };
         _gen = new FaceTrackingGenerator(cfg);
         var dominants = new HashSet<EmotionLabel>();
         _gen.EmotionSampleGenerated += s =>
         {
-            lock (dominants) dominants.Add(s.DominantEmotion);
+            lock (dominants) dominants.Add(s.Dominant);
         };
 
         _gen.Start();

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TopoMap EEG</title>
+<link rel="icon" type="image/png" href="img/favicon.png">
+<link rel="stylesheet" href="app.css">
+<style>
+  body { background: var(--BgCanvas); }
+  #topo { flex: 1; min-height: 0; width: 100%; display: block; background: var(--BgCanvas); }
+  .topo-wait { position: absolute; inset: 40px 0 30px; display: grid; place-items: center; color: var(--TextMuted); font-size: 11px; pointer-events: none; }
+</style>
+</head>
+<body>
+  <div class="view-bar">
+    <span class="logo-mark" role="img" aria-label="CIRICS"></span><b>TOPOMAP EEG</b>
+    <label><input type="checkbox" id="chkLabels" checked> Labels</label>
+    <label><input type="checkbox" id="chkHeatmap" checked> Heatmap</label>
+    <label><input type="checkbox" id="chkContour" checked> Contour</label>
+    <span id="conn" class="conn">○ connexion…</span>
+  </div>
+  <canvas id="topo"></canvas>
+  <div class="view-foot"><span class="seq-legend">Faible <span class="seq-grad"></span> Fort</span></div>
+  <div class="topo-wait" id="wait">En attente de données…</div>
+<script src="theme.js"></script>
+<script src="topomap.js"></script>
+</body>
+</html>

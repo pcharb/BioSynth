@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Moteur BioSynth : générateurs EEG / oculométrie / visage, replay, lecteurs de fichiers, LSL.
+    net8.0, aucune dépendance NuGet ; fonctionne sous Windows, Linux et macOS.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>BioSynth.Core</AssemblyName>
+    <RootNamespace>BioSynth</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BioSynth" />
+    <InternalsVisibleTo Include="BioSynth.Tests" />
+  </ItemGroup>
+</Project>

@@ -235,7 +235,7 @@ public class BrainZoneControllerTests
     public void ApplyPreset_Unknown_DoesNotCrash()
     {
         var ctrl = new BrainZoneController();
-        var act = Action () => ctrl.ApplyPreset("INCONNU_XYZ");
+        Action act = () => ctrl.ApplyPreset("INCONNU_XYZ");
         act.Should().NotThrow();
     }
 

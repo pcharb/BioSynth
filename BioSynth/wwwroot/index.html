@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BioSynth</title>
+<link rel="icon" type="image/png" href="img/favicon.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <span class="logo-mark" role="img" aria-label="CIRICS"></span>
+    <div>
+      <div class="brand-title">BioSynth <span class="org">· CIRICS</span></div>
+      <div class="brand-sub">EEG + Eye Tracking + Face Tracking · <span id="platform"></span></div>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="eeg" role="tab">⬡ EEG</button>
+    <button class="tab" data-tab="et" role="tab">◉ EYE TRACKING</button>
+    <button class="tab" data-tab="ft" role="tab">◈ FACE TRACKING</button>
+    <button class="tab" data-tab="viz" role="tab">▤ VISUALISATION</button>
+  </nav>
+  <div class="header-right">
+    <span class="rec"><i class="dot green" id="dotEeg"></i><span id="recEegHdr">EEG IDLE</span></span>
+    <span class="rec"><i class="dot cyan" id="dotEt"></i><span id="recEtHdr">ET IDLE</span></span>
+    <span class="rec"><i class="dot violet" id="dotFt"></i><span id="recFtHdr">FT IDLE</span></span>
+    <select id="cbTheme" title="Thème de l'interface" aria-label="Thème">
+      <option value="Auto">◐ Auto</option>
+      <option value="Light">☀ Clair</option>
+      <option value="Dark">☾ Sombre</option>
+    </select>
+  </div>
+</header>
+
+<main>
+<!-- ═══════════════════════════════ ONGLET EEG ═══════════════════════════════ -->
+<section class="tabpane active" id="tab-eeg">
+  <div class="cols">
+    <div class="col">
+      <div class="sec-head green">▶ EEG</div>
+      <label class="lbl">CANAUX</label>
+      <select id="cbChannels" data-persist>
+        <option value="8" selected>8 canaux</option>
+        <option value="16">16 canaux</option>
+        <option value="32">32 canaux</option>
+        <option value="64">64 canaux</option>
+      </select>
+      <label class="lbl">TAUX D'ÉCHANTILLONNAGE (Hz)</label>
+      <input id="txtSampleRate" type="number" min="1" max="20000" value="256" data-persist>
+      <div class="hint">Typique : 256, 512, 1000 Hz</div>
+
+      <label class="lbl">MODE DE SORTIE EEG</label>
+      <select id="cbOutputMode" data-persist data-toggle-out="eeg">
+        <option value="File" selected>Fichier</option>
+        <option value="TCP">TCP Stream</option>
+        <option value="UDP">UDP Stream</option>
+        <option value="None">Aucune (LSL seul)</option>
+      </select>
+      <div class="out-file" data-out="eeg">
+        <label class="lbl">FICHIER EEG</label>
+        <div class="row-path"><input id="txtFilePath" type="text" data-persist><button class="btn-sm" data-save-for="txtFilePath" data-name="eeg_data.csv">…</button></div>
+        <label class="lbl">FORMAT</label>
+        <select id="cbFormat" data-persist>
+          <option value="CSV" selected>CSV</option>
+          <option value="Binary">Binary Float32</option>
+          <option value="BDF">BDF</option>
+        </select>
+      </div>
+      <div class="out-stream hidden" data-out="eeg">
+        <div class="grid2">
+          <div><label class="lbl">HÔTE EEG</label><input id="txtHost" type="text" value="127.0.0.1" data-persist></div>
+          <div><label class="lbl">PORT EEG</label><input id="txtPort" type="number" value="9999" data-persist></div>
+        </div>
+      </div>
+
+      <label class="lbl">NIVEAU DE BRUIT EEG <b class="val" id="txtNoiseVal">0.50</b></label>
+      <input id="slNoise" type="range" min="0" max="1" step="0.01" value="0.5" data-persist data-show="txtNoiseVal" data-fixed="2">
+      <label class="chk"><input id="chkArtifacts" type="checkbox" checked data-persist> Générer artifacts EEG</label>
+
+      <label class="lbl">CANAUX AFFICHÉS <b class="val" id="txtDisplayChannels">4 canaux affichés</b></label>
+      <input id="slDisplayChannels" type="range" min="1" max="8" step="1" value="4" data-persist>
+
+      <div class="sec-head small">⬡ LSL STREAM</div>
+      <div class="lsl-row">
+        <label class="chk"><input id="chkLslEeg" type="checkbox" data-persist> EEG</label>
+        <input id="txtLslNameEeg" type="text" value="BioSynth_EEG" data-persist>
+      </div>
+      <div class="lsl-status" data-lsl-status>○ LSL inactif</div>
+    </div>
+
+    <div class="col">
+      <div class="sec-head green">⬡ ZONES CÉRÉBRALES</div>
+      <label class="lbl">ÉTAT MENTAL PRÉDÉFINI</label>
+      <div class="row-path">
+        <select id="cbBrainPreset">
+          <option value="Repos" selected>Repos</option>
+          <option value="Concentration">Concentration</option>
+          <option value="Méditation">Méditation</option>
+          <option value="Éveil">Éveil</option>
+          <option value="Sommeil léger">Sommeil léger</option>
+          <option value="Sommeil profond">Sommeil profond</option>
+        </select>
+        <button class="btn-sm" id="btnApplyPreset">Appliquer</button>
+      </div>
+      <label class="lbl">ACTIVATION PAR RÉGION</label>
+      <div id="zoneSliders" class="zones"></div>
+      <div class="grid2">
+        <button class="btn wide topo" id="btnOpenTopoMap">🗺  TOPOMAP 2D</button>
+        <button class="btn wide topo" id="btnOpenBrain3D">🧠  CERVEAU 3D</button>
+      </div>
+      <div class="hint">Chaque vue s'ouvre dans une fenêtre séparée et suit l'acquisition en temps réel.</div>
+    </div>
+
+    <div class="col">
+      <div class="sec-head green">⏵ SOURCE DE DONNÉES</div>
+      <div class="radios">
+        <label><input type="radio" name="eegSource" value="generate" checked data-persist> Générer</label>
+        <label><input type="radio" name="eegSource" value="replay" data-persist> Replay</label>
+        <label><input type="radio" name="eegSource" value="lsl" data-persist> LSL IA</label>
+      </div>
+
+      <div id="panelReplay" class="panel hidden">
+        <label class="lbl">FICHIER(S) (.csv, .xlsx, .vhdr, .bin)</label>
+        <div class="row-path"><input id="txtReplayPath" type="text" placeholder="chemin1;chemin2;…" data-persist><button class="btn-sm" id="btnBrowseReplay">…</button></div>
+        <div class="info" id="txtReplayInfo">Sélectionner un ou plusieurs fichiers (même type)...</div>
+        <div class="grid2">
+          <div><label class="lbl">VITESSE</label>
+            <select id="cbReplaySpeed" data-persist>
+              <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
+              <option value="1.0" selected>1×</option><option value="2.0">2×</option><option value="4.0">4×</option>
+            </select></div>
+          <div class="bottom"><label class="chk"><input id="chkReplayLoop" type="checkbox" data-persist> Boucler</label></div>
+        </div>
+        <div class="progress-row">
+          <div class="pbar"><div id="pbReplay"></div></div>
+          <span id="txtReplayProgress">0%</span>
+          <button class="btn-sm hidden" id="btnReplayPause" title="Pause / reprise">⏸</button>
+        </div>
+      </div>
+
+      <div id="panelLslInlet" class="panel hidden">
+        <div class="sec-head small">⬡ SOURCE LSL EXTERNE (IA)</div>
+        <button class="btn wide" id="btnDiscoverLsl">🔍  Découvrir les flux LSL</button>
+        <label class="lbl">FLUX DISPONIBLES</label>
+        <select id="lstLslStreams" size="4" class="list"></select>
+        <div class="info" id="txtLslInletInfo">Aucun flux sélectionné</div>
+        <div class="info" id="txtLslInletStatus">○ Non connecté</div>
+      </div>
+
+      <button class="btn start eeg" id="btnStartEeg">▶  DÉMARRER EEG</button>
+
+      <div class="kv">
+        <div><span>STATUT</span><b id="txtStatus">Prêt</b></div>
+        <div><span>SAMPLES</span><b id="txtSampleCount">0</b></div>
+        <div><span>DURÉE</span><b id="txtDuration">0.0s</b></div>
+        <div><span>SOURCE</span><b id="txtSourceMode">GÉNÉRATION</b></div>
+        <div><span>REPLAY</span><b id="txtReplayPct">—</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════ ONGLET EYE TRACKING ═════════════════════════════ -->
+<section class="tabpane" id="tab-et">
+  <div class="cols">
+    <div class="col">
+      <div class="sec-head cyan">◉ EYE TRACKING</div>
+      <div class="radios">
+        <label><input type="radio" name="etSource" value="generate" checked data-persist> Générer</label>
+        <label><input type="radio" name="etSource" value="replay" data-persist> Replay</label>
+      </div>
+      <div id="panelEtReplay" class="panel hidden">
+        <label class="lbl">FICHIER(S) OCULOMÉTRIE (.csv, .xlsx)</label>
+        <div class="row-path"><input id="txtEtReplayPath" type="text" placeholder="chemin1;chemin2;…" data-persist><button class="btn-sm" id="btnBrowseEtReplay">…</button></div>
+        <div class="info" id="txtEtReplayInfo">Sélectionner un ou plusieurs fichiers...</div>
+        <div class="grid2">
+          <div><label class="lbl">VITESSE</label>
+            <select id="cbEtReplaySpeed" data-persist>
+              <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
+              <option value="1.0" selected>1×</option><option value="2.0">2×</option><option value="4.0">4×</option>
+            </select></div>
+          <div class="bottom"><label class="chk"><input id="chkEtReplayLoop" type="checkbox" data-persist> Boucler</label></div>
+        </div>
+        <label class="chk"><input id="chkEtReplayRaw" type="checkbox" data-persist> Colonnes brutes en sortie (JSON UDP/TCP, CSV)</label>
+        <div class="progress-row">
+          <div class="pbar cyan"><div id="pbEtReplay"></div></div>
+          <span id="txtEtReplayProgress">0%</span>
+          <button class="btn-sm hidden" id="btnEtReplayPause" title="Pause / reprise">⏸</button>
+        </div>
+      </div>
+      <div id="panelEtGenerate">
+        <label class="lbl">TAUX D'ÉCHANTILLONNAGE ET (Hz)</label>
+        <select id="cbEtSampleRate" data-persist>
+          <option value="60">60 Hz</option><option value="120" selected>120 Hz</option>
+          <option value="250">250 Hz</option><option value="500">500 Hz</option><option value="1000">1000 Hz</option>
+        </select>
+        <label class="lbl">RÉSOLUTION ÉCRAN</label>
+        <div class="grid-res"><input id="txtScreenW" type="number" value="1920" data-persist><span>×</span><input id="txtScreenH" type="number" value="1080" data-persist></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="sec-head cyan">SORTIE</div>
+      <label class="lbl">MODE DE SORTIE ET</label>
+      <select id="cbEtOutputMode" data-persist data-toggle-out="et">
+        <option value="File">Fichier</option>
+        <option value="TCP">TCP Stream</option>
+        <option value="UDP" selected>UDP Stream</option>
+        <option value="None">Aucune (LSL seul)</option>
+      </select>
+      <div class="out-file hidden" data-out="et">
+        <label class="lbl">FICHIER ET</label>
+        <div class="row-path"><input id="txtEtFilePath" type="text" data-persist><button class="btn-sm" data-save-for="txtEtFilePath" data-name="eyetracking_data.csv">…</button></div>
+      </div>
+      <div class="out-stream" data-out="et">
+        <div class="grid2">
+          <div><label class="lbl">HÔTE ET</label><input id="txtEtHost" type="text" value="127.0.0.1" data-persist></div>
+          <div><label class="lbl">PORT ET</label><input id="txtEtPort" type="number" value="9998" data-persist></div>
+        </div>
+      </div>
+      <div id="panelEtGenerateOptions">
+        <label class="lbl">COMPORTEMENTS SIMULÉS</label>
+        <label class="chk"><input id="chkEtSaccades" type="checkbox" checked data-persist> Saccades</label>
+        <label class="chk"><input id="chkEtBlinks" type="checkbox" checked data-persist> Clignements</label>
+        <label class="chk"><input id="chkEtPupil" type="checkbox" checked data-persist> Dilatation pupillaire</label>
+        <label class="lbl">BRUIT ET <b class="val" id="txtEtNoiseVal">0.30</b></label>
+        <input id="slEtNoise" type="range" min="0" max="1" step="0.01" value="0.3" data-persist data-show="txtEtNoiseVal" data-fixed="2">
+      </div>
+      <div class="sec-head small">⬡ LSL STREAM</div>
+      <div class="lsl-row">
+        <label class="chk"><input id="chkLslEt" type="checkbox" data-persist> LSL ET</label>
+        <input id="txtLslNameEt" type="text" value="BioSynth_EyeTracking" data-persist>
+      </div>
+      <div class="lsl-status" data-lsl-status>○ LSL inactif</div>
+    </div>
+
+    <div class="col">
+      <div class="sec-head cyan">CONTRÔLE</div>
+      <button class="btn start et" id="btnStartEt">▶  DÉMARRER ET</button>
+      <div class="kv">
+        <div><span>STATUT</span><b id="txtEtStatus">Prêt</b></div>
+        <div><span>SAMPLES</span><b id="txtEtSampleCount">0</b></div>
+        <div><span>EVENT</span><b id="txtEtEvent">—</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════ ONGLET FACE TRACKING ═════════════════════════════ -->
+<section class="tabpane" id="tab-ft">
+  <div class="cols">
+    <div class="col">
+      <div class="sec-head violet">◈ FACE TRACKING</div>
+      <label class="lbl">MODE DE STREAM</label>
+      <select id="cbFtMode" data-persist>
+        <option value="Face" selected>Landmarks + Pose + AU</option>
+        <option value="Emotion">Émotions seulement</option>
+      </select>
+      <label class="lbl">TAUX D'ÉCHANTILLONNAGE (Hz)</label>
+      <select id="cbFtSampleRate" data-persist>
+        <option value="15">15 Hz</option><option value="24">24 Hz</option><option value="30" selected>30 Hz</option>
+        <option value="60">60 Hz</option><option value="120">120 Hz</option>
+      </select>
+      <label class="lbl">OPTIONS</label>
+      <label class="chk"><input id="chkFtHeadMove" type="checkbox" checked data-persist> Mouvement de tête</label>
+      <label class="chk"><input id="chkFtMicro" type="checkbox" checked data-persist> Micro-expressions</label>
+      <label class="lbl">DURÉE ÉTAT ÉMOTIONNEL (sec) <b class="val" id="txtFtEmoDurVal">4.0</b></label>
+      <input id="slFtEmoDur" type="range" min="1" max="15" step="0.5" value="4" data-persist data-show="txtFtEmoDurVal" data-fixed="1">
+      <label class="lbl">BRUIT FT <b class="val" id="txtFtNoiseVal">0.20</b></label>
+      <input id="slFtNoise" type="range" min="0" max="1" step="0.01" value="0.2" data-persist data-show="txtFtNoiseVal" data-fixed="2">
+    </div>
+
+    <div class="col">
+      <div class="sec-head violet">SORTIE</div>
+      <label class="lbl">MODE DE SORTIE FT</label>
+      <select id="cbFtOutputMode" data-persist data-toggle-out="ft">
+        <option value="File">Fichier</option>
+        <option value="TCP">TCP Stream</option>
+        <option value="UDP" selected>UDP Stream</option>
+        <option value="None">Aucune (LSL seul)</option>
+      </select>
+      <div class="out-file hidden" data-out="ft">
+        <label class="lbl">FICHIER FT</label>
+        <div class="row-path"><input id="txtFtFilePath" type="text" data-persist><button class="btn-sm" data-save-for="txtFtFilePath" data-name="face_data.csv">…</button></div>
+      </div>
+      <div class="out-stream" data-out="ft">
+        <div class="grid2">
+          <div><label class="lbl">HÔTE FT</label><input id="txtFtHost" type="text" value="127.0.0.1" data-persist></div>
+          <div><label class="lbl">PORT FT</label><input id="txtFtPort" type="number" value="9997" data-persist></div>
+        </div>
+      </div>
+      <div class="sec-head small">⬡ LSL STREAM</div>
+      <div class="lsl-row">
+        <label class="chk"><input id="chkLslFt" type="checkbox" data-persist> LSL FT</label>
+        <input id="txtLslNameFt" type="text" value="BioSynth_Face" data-persist>
+      </div>
+      <div class="lsl-status" data-lsl-status>○ LSL inactif</div>
+    </div>
+
+    <div class="col">
+      <div class="sec-head violet">CONTRÔLE</div>
+      <button class="btn start ft" id="btnStartFt">▶  DÉMARRER FT</button>
+      <div class="kv">
+        <div><span>STATUT</span><b id="txtFtStatus">Prêt</b></div>
+        <div><span>SAMPLES</span><b id="txtFtSampleCount">0</b></div>
+        <div><span>MODE</span><b id="txtFtModeLabel">FACE</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════ ONGLET VISUALISATION ═════════════════════════════ -->
+<section class="tabpane viz" id="tab-viz">
+  <div class="viz-top">
+    <div><b class="green">OSCILLOSCOPE EEG</b> <span class="muted" id="txtChannelInfo">8CH·256Hz</span></div>
+    <div class="viz-recs">
+      <span class="rec"><i class="dot green" id="dotEeg2"></i><span id="recEeg">EEG IDLE</span></span>
+      <span class="rec"><i class="dot cyan" id="dotEt2"></i><span id="recEt">ET IDLE</span></span>
+      <span class="rec"><i class="dot violet" id="dotFt2"></i><span id="recFt">FT IDLE</span></span>
+    </div>
+  </div>
+
+  <div class="viz-main">
+    <div class="scope" id="eegPlots"></div>
+
+    <aside class="side et">
+      <div class="side-head cyan">◉ EYE TRACKING</div>
+      <div class="side-body">
+        <div class="lbl">CARTE DU REGARD</div>
+        <canvas id="gazeMap" class="cv gaze"></canvas>
+        <div class="kv3">
+          <div><span id="lblGazeX">GAZE X</span><b id="txtGazeX">—</b></div>
+          <div><span id="lblGazeY">GAZE Y</span><b id="txtGazeY">—</b></div>
+          <div><span>ÉVÉNEMENT</span><b id="txtEtEventDetail">—</b></div>
+          <div><span id="lblPupilL">PUPILLE G (mm)</span><b id="txtPupilL">—</b></div>
+          <div><span id="lblPupilR">PUPILLE D (mm)</span><b id="txtPupilR">—</b></div>
+          <div><span>VITESSE (°/s)</span><b id="txtEtVelocity">—</b></div>
+        </div>
+        <div class="lbl" id="txtPupilTitle">DIAMÈTRE PUPILLAIRE</div>
+        <canvas id="pupilPlot" class="cv pupil"></canvas>
+        <div class="legend" id="pupilLegend"></div>
+      </div>
+    </aside>
+
+    <aside class="side ft">
+      <div class="side-head violet">◈ FACE TRACKING</div>
+      <div class="side-body">
+        <div class="lbl">LANDMARKS 68pts</div>
+        <canvas id="faceCanvas" class="cv face"></canvas>
+        <div class="lbl">POSE TÊTE (6-DOF)</div>
+        <div class="kv3">
+          <div><span>PITCH</span><b id="txtFtPitch">0.0°</b></div>
+          <div><span>YAW</span><b id="txtFtYaw">0.0°</b></div>
+          <div><span>ROLL</span><b id="txtFtRoll">0.0°</b></div>
+          <div><span>PROF.</span><b id="txtFtZ">650mm</b></div>
+          <div><span>CONF.</span><b id="txtFtConf">—</b></div>
+          <div><span>MICRO</span><b id="txtFtMicro">—</b></div>
+        </div>
+        <div class="lbl">ÉTAT ÉMOTIONNEL</div>
+        <div class="emo-badge" id="ftEmoBadge">
+          <b id="txtFtEmoLabel">NEUTRAL</b>
+          <span>AROUSAL <b id="txtFtArousal">—</b></span>
+          <span>VALENCE <b id="txtFtValence">—</b></span>
+        </div>
+        <div id="emoBars" class="emo-bars"></div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="viz-bottom">
+    <div class="card">
+      <div class="card-head green">BANDES DE FRÉQUENCE EEG</div>
+      <div class="bands" id="bands"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">STATUT DES SOURCES</div>
+      <div class="kv">
+        <div><span>EEG</span><b id="txtEegActive">NON</b></div>
+        <div><span>ET</span><b id="txtEtActive">NON</b></div>
+        <div><span>FT</span><b id="txtFtActive">NON</b></div>
+        <div><span>REPLAY</span><b id="txtReplayActive">NON</b></div>
+        <div><span>SYNC</span><b id="txtSync">—</b></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head cyan">STATISTIQUES EYE TRACKING</div>
+      <div class="kv">
+        <div><span>FIXATIONS</span><b id="txtFixationCount">0</b></div>
+        <div><span>SACCADES</span><b id="txtSaccadeCount">0</b></div>
+        <div><span>CLIGNEMENTS</span><b id="txtBlinkCount">0</b></div>
+        <div><span>VIT. MOY (°/s)</span><b id="txtAvgVelocity">0</b></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head violet">STATISTIQUES FACE TRACKING</div>
+      <div class="kv">
+        <div><span>ÉMOTION DOM.</span><b id="txtFtDomEmo">NEUTRAL</b></div>
+        <div><span>TRANSITIONS</span><b id="txtFtTransCount">0</b></div>
+        <div><span>AROUSAL MOY</span><b id="txtFtAvgArousal">—</b></div>
+        <div><span>VALENCE MOY</span><b id="txtFtAvgValence">—</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="statusbar">
+  <span id="connState" class="conn">● connexion…</span>
+  <span class="lsl-status" data-lsl-status>○ LSL inactif</span>
+  <span class="muted" id="footInfo"></span>
+  <span class="cirics-foot" title="Centre interdisciplinaire de recherche et innovation en cybersécurité et société"><span class="logo-mark"></span>CIRICS</span>
+</footer>
+
+<!-- Sélecteur de fichiers (remplace les boîtes de dialogue Windows) -->
+<dialog id="fileDialog" class="filedlg">
+  <form method="dialog">
+    <div class="fd-head"><b id="fdTitle">Sélectionner</b><button value="cancel" class="btn-sm" aria-label="Fermer">✕</button></div>
+    <div class="fd-path"><button type="button" class="btn-sm" id="fdUp" title="Dossier parent">↑</button><input id="fdPath" type="text" spellcheck="false"></div>
+    <div class="fd-body">
+      <div class="fd-places" id="fdPlaces"></div>
+      <ul class="fd-list" id="fdList"></ul>
+    </div>
+    <div class="fd-foot">
+      <input id="fdName" type="text" placeholder="nom du fichier" spellcheck="false">
+      <select id="fdFilter"></select>
+      <button type="button" class="btn-sm primary" id="fdOk">Ouvrir</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast hidden" role="alert"></div>
+
+<script src="theme.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
